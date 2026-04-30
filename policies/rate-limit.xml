@@ -14,7 +14,7 @@
             calls="30"
             renewal-period="60"
             counter-key="@(context.Request.Headers
-                .GetValueOrDefault("Mcp-Session-Id","anonymous"))"
+                .GetValueOrDefault(&quot;Mcp-Session-Id&quot;,&quot;anonymous&quot;))"
             increment-condition="@(context.Response.StatusCode >= 200)" />
 
         <!-- 相関ID: クライアント提供があればそれを使い、なければ自動生成 -->
