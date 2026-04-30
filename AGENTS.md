@@ -73,6 +73,14 @@ az deployment group what-if \
 
 ### 4.4 E2E デプロイ（Layer C）
 ```bash
+# 新規サブスクリプションの場合は先にプロバイダーを登録
+az provider register -n Microsoft.App --wait
+az provider register -n Microsoft.ApiManagement --wait
+az provider register -n Microsoft.ApiCenter --wait
+az provider register -n Microsoft.KeyVault --wait
+az provider register -n Microsoft.Insights --wait
+az provider register -n Microsoft.OperationalInsights --wait
+
 az group create -n rg-mcp-workshop -l japaneast
 az deployment group create \
   -g rg-mcp-workshop \

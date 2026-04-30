@@ -194,7 +194,22 @@ az login
 az account set --subscription "<your-subscription-id>"
 ```
 
-#### Step 3: リソースグループの作成
+#### Step 3: リソースプロバイダーの登録
+
+新規サブスクリプションでは、以下のリソースプロバイダーを事前に登録してください。
+
+```bash
+az provider register -n Microsoft.App --wait
+az provider register -n Microsoft.ApiManagement --wait
+az provider register -n Microsoft.ApiCenter --wait
+az provider register -n Microsoft.KeyVault --wait
+az provider register -n Microsoft.Insights --wait
+az provider register -n Microsoft.OperationalInsights --wait
+```
+
+> **⏱️ 注意**: 登録には数分かかります。`--wait` を付けることで完了まで待機します。
+
+#### Step 4: リソースグループの作成
 
 ```bash
 az group create \
