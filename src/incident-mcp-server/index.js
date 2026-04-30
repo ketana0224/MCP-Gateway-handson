@@ -54,10 +54,10 @@ function createServer() {
     "listIncidents",
     "障害チケットの一覧を取得します。オプションでステータスや重要度でフィルタリングできます。",
     {
-      status: z.string().optional().describe(
+      status: z.enum(["open", "investigating", "resolved", "closed"]).optional().describe(
         "フィルタするステータス (open / investigating / resolved / closed)"
       ),
-      severity: z.string().optional().describe(
+      severity: z.enum(["critical", "high", "medium", "low"]).optional().describe(
         "フィルタする重要度 (critical / high / medium / low)"
       ),
     },
@@ -112,7 +112,7 @@ function createServer() {
     "新しい障害チケットを起票します。タイトル、重要度、説明が必要です。",
     {
       title: z.string().describe("チケットタイトル"),
-      severity: z.string().optional().describe(
+      severity: z.enum(["critical", "high", "medium", "low"]).optional().describe(
         "重要度 (critical / high / medium / low)"
       ),
       description: z.string().optional().describe("障害の詳細説明"),
@@ -152,6 +152,7 @@ const app = express();
 app.use(express.json());
 
 app.post("/mcp", async (req, res) => {
+  // sessionIdGenerator: undefined = stateless mode (no session tracking per request)
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   const srv = createServer();
   await srv.connect(transport);
