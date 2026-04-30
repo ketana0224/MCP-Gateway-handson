@@ -8,6 +8,15 @@ param prefix string
 @description('デプロイリージョン')
 param location string
 
+@description('knowledge-api コンテナイメージ')
+param knowledgeApiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
+@description('incident-mcp-server コンテナイメージ')
+param incidentMcpImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
+@description('oncall-api コンテナイメージ')
+param oncallApiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 // Container Apps Environment
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-${prefix}'
@@ -34,7 +43,7 @@ resource knowledgeApi 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'knowledge-api'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // プレースホルダー
+          image: knowledgeApiImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -66,7 +75,7 @@ resource incidentMcp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'incident-mcp'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // プレースホルダー
+          image: incidentMcpImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -98,7 +107,7 @@ resource oncallApi 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'oncall-api'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // プレースホルダー
+          image: oncallApiImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'

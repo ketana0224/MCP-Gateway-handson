@@ -42,13 +42,36 @@ module apiCenter 'modules/api-center.bicep' = {
 }
 
 // ============================================================
+// Azure Container Registry (コンテナイメージ格納)
+// ============================================================
+module acr 'modules/acr.bicep' = {
+  name: 'deploy-acr'
+  params: {
+    prefix: prefix
+    location: location
+  }
+}
+
+// ============================================================
 // Container Apps Environment + Apps (バックエンドAPI / MCP Server)
 // ============================================================
+@description('knowledge-api コンテナイメージ（省略時はプレースホルダ）')
+param knowledgeApiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
+@description('incident-mcp-server コンテナイメージ（省略時はプレースホルダ）')
+param incidentMcpImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
+@description('oncall-api コンテナイメージ（省略時はプレースホルダ）')
+param oncallApiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 module containerApps 'modules/container-apps.bicep' = {
   name: 'deploy-container-apps'
   params: {
     prefix: prefix
     location: location
+    knowledgeApiImage: knowledgeApiImage
+    incidentMcpImage: incidentMcpImage
+    oncallApiImage: oncallApiImage
   }
 }
 
@@ -104,3 +127,5 @@ output keyVaultName string = keyVault.name
 output knowledgeApiUrl string = containerApps.outputs.knowledgeApiUrl
 output incidentMcpUrl string = containerApps.outputs.incidentMcpUrl
 output oncallApiUrl string = containerApps.outputs.oncallApiUrl
+output acrLoginServer string = acr.outputs.acrLoginServer
+output acrName string = acr.outputs.acrName

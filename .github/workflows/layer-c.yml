@@ -69,6 +69,43 @@ jobs:
             -p apimPublisherEmail=ci@example.com \
             --mode Incremental
 
+      - name: Build and push container images to ACR
+        run: |
+          ACR_NAME=$(az deployment group show \
+            -g "$RESOURCE_GROUP" -n main \
+            --query "properties.outputs.acrName.value" -o tsv)
+          ACR_SERVER=$(az deployment group show \
+            -g "$RESOURCE_GROUP" -n main \
+            --query "properties.outputs.acrLoginServer.value" -o tsv)
+          echo "ACR_NAME=${ACR_NAME}" >> "$GITHUB_ENV"
+          echo "ACR_SERVER=${ACR_SERVER}" >> "$GITHUB_ENV"
+
+          az acr login --name "$ACR_NAME"
+
+          az acr build --registry "$ACR_NAME" \
+            --image "knowledge-api:${{ github.sha }}" \
+            src/knowledge-api/
+
+          az acr build --registry "$ACR_NAME" \
+            --image "incident-mcp:${{ github.sha }}" \
+            src/incident-mcp-server/
+
+          az acr build --registry "$ACR_NAME" \
+            --image "oncall-api:${{ github.sha }}" \
+            src/oncall-api/
+
+      - name: Update Container Apps with new images
+        run: |
+          az deployment group create \
+            -g "$RESOURCE_GROUP" \
+            -f infra/main.bicep \
+            -p infra/parameters.json \
+            -p apimPublisherEmail=ci@example.com \
+            -p knowledgeApiImage="${ACR_SERVER}/knowledge-api:${{ github.sha }}" \
+            -p incidentMcpImage="${ACR_SERVER}/incident-mcp:${{ github.sha }}" \
+            -p oncallApiImage="${ACR_SERVER}/oncall-api:${{ github.sha }}" \
+            --mode Incremental
+
       - name: Get deployment outputs
         id: outputs
         run: |
@@ -148,10 +185,7 @@ jobs:
               '',
               `**Overall:** ${overallOk ? '✅ PASS' : '❌ FAIL (5xx or connection error detected)'}`,
               '',
-              '> ⚠️ **Note:** tools/list の中身は image 差し替え後に有効になります。',
-              '> コンテナイメージがプレースホルダ（`containerapps-helloworld`）のままの場合、',
-              '> HTTP ステータスが 200/4xx でも tools 配列は空またはエラーになります。',
-              '> 実際の MCP ツール動作確認には `src/*` のコンテナ化・push・image 差し替えが必要です。',
+              '> ⚠️ **Note:** APIM から Container Apps へのルーティングが有効になるまで数分かかる場合があります。',
               '',
               `*Run triggered by: ${context.actor} at ${new Date().toISOString()}*`,
             ].join('\n');
