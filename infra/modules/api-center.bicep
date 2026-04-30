@@ -11,6 +11,12 @@ param location string
 resource apiCenter 'Microsoft.ApiCenter/services@2024-03-01' = {
   name: name
   location: location
+  sku: {
+    name: 'Free'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {}
 }
 
