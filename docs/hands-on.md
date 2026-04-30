@@ -401,21 +401,31 @@ Azure Portal での操作:
 
 1. **API Management** → **APIs** → **MCP Servers** を開く
 2. **+ Create MCP server** をクリック
-3. **Expose an API as an MCP server** を選択
-4. 以下を入力:
+3. **API を MCP サーバーとして公開する（Expose an API as an MCP server）** を選択
 
-| 項目 | 値 |
+**バックエンド MCP サーバー** セクション:
+
+4. **API** で `Knowledge Search API` を選択
+5. **API 操作** で公開する Operations（= Tools）を選択:
+   - ✅ `[POST] キーワードでナレッジ記事を検索` (searchArticles)
+   - ✅ `[GET] ナレッジカテゴリ一覧` (listCategories)
+   - ✅ `[GET] 記事ID で詳細取得` (getArticleById)
+
+**新しい MCP サーバー** セクション:
+
+6. 以下を入力:
+
+| フィールド | 値 |
 |---|---|
-| MCP Server name | `knowledge-search-mcp` |
-| Base path | `/knowledge-mcp` |
-| Description | `社内ナレッジベースを検索するMCP Server。記事の全文検索、カテゴリ別一覧、個別記事の取得が可能。` |
+| Display name | `knowledge-search-mcp` |
+| Name | `knowledge-search-mcp` |
+| 説明 | `社内ナレッジベースを検索するMCP Server。記事の全文検索、カテゴリ別一覧、個別記事の取得が可能。` |
 
-5. **Source API** で `Knowledge Search API` を選択
-6. 公開する **Operations（= Tools）** を選択:
-   - ✅ `searchArticles` — 記事のキーワード検索
-   - ✅ `getArticleById` — 記事IDでの詳細取得
-   - ✅ `listCategories` — カテゴリ一覧取得
-7. **Create** をクリック
+**製品** セクション:
+
+7. 製品は任意（空のままでも可）
+
+8. **作成** をクリック
 
 > **💡 ポイント**: Tool の名前と説明文は、LLM がツール選択に使います。わかりやすい説明を書くことが重要です。
 
@@ -520,17 +530,31 @@ URL: https://$INCIDENT_MCP_URL/mcp
 Azure Portal での操作:
 
 1. **API Management** → **APIs** → **MCP Servers** → **+ Create MCP server**
-2. **Expose an existing MCP server** を選択
-3. 以下を入力:
+2. **既存の MCP サーバーを公開する（Expose an existing MCP server）** を選択
 
-| 項目 | 値 |
+**バックエンド MCP サーバー** セクション:
+
+3. **MCP サーバーのベース URL** に入力:
+   ```
+   https://<INCIDENT_MCP_URL>/mcp
+   ```
+
+**新しい MCP サーバー** セクション:
+
+4. 以下を入力:
+
+| フィールド | 値 |
 |---|---|
-| MCP Server name | `incident-mcp` |
-| Base path | `/incident-mcp` |
-| Description | `障害チケット管理用MCP Server。チケットの参照、起票が可能。` |
-| Backend URL | `https://<INCIDENT_MCP_URL>` |
+| Display name | `incident-mcp` |
+| Name | `incident-mcp` |
+| ベース パス | `/incident-mcp` |
+| 説明 | `障害チケット管理用MCP Server。チケットの参照、起票が可能。` |
 
-4. **Create** をクリック
+**製品** セクション:
+
+5. 製品は任意（空のままでも可）
+
+6. **作成** をクリック
 
 #### Step 3: APIM 経由での動作確認（10分）
 
