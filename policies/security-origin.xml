@@ -1,0 +1,62 @@
+<!--
+  セキュリティ強化ポリシー
+  Lab 7（オプション）— Origin 検証 + プロトコルバージョン検証
+
+  MCP 仕様の MUST 要件（Origin 検証）と、
+  プロトコルバージョンの整合性チェックを実装します。
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- Origin 検証（DNS Rebinding 攻撃対策 — MCP 仕様 MUST） -->
+        <check-header name="Origin"
+                      failed-check-httpcode="403"
+                      failed-check-error-message="Forbidden: Invalid Origin"
+                      ignore-case="true">
+            <value>https://vscode.dev</value>
+            <value>vscode-file://vscode-app</value>
+            <value>https://github.dev</value>
+            <!-- 必要に応じて追加 -->
+        </check-header>
+
+        <!-- MCP-Protocol-Version ヘッダー検証 -->
+        <check-header name="MCP-Protocol-Version"
+                      failed-check-httpcode="400"
+                      failed-check-error-message="Bad Request: Missing or unsupported MCP protocol version">
+            <value>2025-06-18</value>
+            <value>2025-11-25</value>
+        </check-header>
+
+        <!-- 許可されたクライアントアプリIDのみ通過（Confused Deputy 対策） -->
+        <validate-azure-ad-token
+            tenant-id="{{EntraTenantId}}"
+            header-name="Authorization"
+            failed-validation-httpcode="401"
+            failed-validation-error-message="Unauthorized: Client not in allowlist">
+            <client-application-ids>
+                <application-id>{{AllowedCopilotClientId}}</application-id>
+                <application-id>{{AllowedInternalAgentClientId}}</application-id>
+            </client-application-ids>
+        </validate-azure-ad-token>
+
+        <!-- 未許可クライアント検出ログ -->
+        <choose>
+            <when condition="@(context.Response.StatusCode == 401)">
+                <trace source="security" severity="error">
+                    <message>@($"BLOCKED: Unauthorized client attempted MCP access. IP={context.Request.IpAddress}")</message>
+                </trace>
+            </when>
+        </choose>
+
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

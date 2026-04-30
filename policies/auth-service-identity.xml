@@ -1,0 +1,24 @@
+<!--
+  サービスID実行（Service Identity）ポリシー
+  Lab 3 — On-call Schedule MCP Server 用
+
+  APIM の Managed Identity でバックエンドに認証します。
+  ユーザーコンテキストは不要なシナリオ向け。
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- インバウンドはサブスクリプションキーで認証（デフォルト） -->
+    </inbound>
+    <backend>
+        <!-- Managed Identity でバックエンド認証 -->
+        <authentication-managed-identity
+            resource="api://{{OncallBackendAppId}}" />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

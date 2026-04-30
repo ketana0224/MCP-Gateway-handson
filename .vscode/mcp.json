@@ -1,0 +1,25 @@
+{
+  "servers": {
+    "knowledge-search": {
+      "type": "http",
+      "url": "https://<your-apim-name>.azure-api.net/knowledge-mcp/mcp",
+      "headers": {
+        "Ocp-Apim-Subscription-Key": "${input:apimSubscriptionKey}"
+      }
+    },
+    "incident": {
+      "type": "http",
+      "url": "https://<your-apim-name>.azure-api.net/incident-mcp/mcp",
+      "headers": {
+        "Ocp-Apim-Subscription-Key": "${input:apimSubscriptionKey}"
+      }
+    },
+    "oncall": {
+      "type": "http",
+      "url": "https://<your-apim-name>.azure-api.net/oncall-mcp/mcp",
+      "headers": {
+        "Ocp-Apim-Subscription-Key": "${input:apimSubscriptionKey}"
+      }
+    }
+  }
+}

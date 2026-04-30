@@ -1,0 +1,13 @@
+{
+  "name": "oncall-api",
+  "version": "1.0.0",
+  "description": "オンコール当番表 REST API（ハンズオン Lab 1 用）",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

@@ -1,0 +1,40 @@
+<!--
+  レート制限 + 相関ID + 監査トレースポリシー
+  Lab 4 — 全 MCP Server 共通
+
+  MCP セッション単位でのレート制限と、
+  リクエスト追跡用の相関IDを注入します。
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- MCP セッション単位でレート制限（1分あたり30リクエスト） -->
+        <rate-limit-by-key
+            calls="30"
+            renewal-period="60"
+            counter-key="@(context.Request.Headers
+                .GetValueOrDefault("Mcp-Session-Id","anonymous"))"
+            increment-condition="@(context.Response.StatusCode >= 200)" />
+
+        <!-- 相関ID: クライアント提供があればそれを使い、なければ自動生成 -->
+        <set-header name="X-Correlation-Id" exists-action="skip">
+            <value>@(Guid.NewGuid().ToString())</value>
+        </set-header>
+
+        <!-- トレース出力（デバッグ用。本番では severity を warning 以上に変更推奨） -->
+        <trace source="mcp-gateway" severity="information">
+            <message>@($"MCP Request: Session={context.Request.Headers.GetValueOrDefault("Mcp-Session-Id","N/A")}, Correlation={context.Request.Headers.GetValueOrDefault("X-Correlation-Id","N/A")}, API={context.Api.Id}")</message>
+        </trace>
+
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

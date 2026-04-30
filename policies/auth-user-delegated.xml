@@ -1,0 +1,51 @@
+<!--
+  ユーザー代理実行（User-delegated）ポリシー
+  Lab 3 — Knowledge Search MCP Server 用
+
+  ユーザーの Entra ID トークンを検証し、ユーザーIDをバックエンドに伝播します。
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- Entra ID トークンの検証 -->
+        <validate-azure-ad-token
+            tenant-id="{{EntraTenantId}}"
+            header-name="Authorization"
+            failed-validation-httpcode="401"
+            failed-validation-error-message="Unauthorized: Invalid or missing token">
+            <client-application-ids>
+                <application-id>{{McpClientAppId}}</application-id>
+            </client-application-ids>
+            <audiences>
+                <audience>{{McpServerAppId}}</audience>
+            </audiences>
+        </validate-azure-ad-token>
+
+        <!-- ユーザーIDをカスタムヘッダーに抽出（監査ログ用） -->
+        <set-header name="X-User-Id" exists-action="override">
+            <value>@(context.Request.Headers
+                .GetValueOrDefault("Authorization","")
+                .AsJwt()?.Claims
+                .GetValueOrDefault("oid","unknown"))</value>
+        </set-header>
+
+        <!-- ユーザー表示名をカスタムヘッダーに抽出 -->
+        <set-header name="X-User-Name" exists-action="override">
+            <value>@(context.Request.Headers
+                .GetValueOrDefault("Authorization","")
+                .AsJwt()?.Claims
+                .GetValueOrDefault("name","unknown"))</value>
+        </set-header>
+
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
