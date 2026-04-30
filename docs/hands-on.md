@@ -228,12 +228,69 @@ az deployment group create \
 
 > **⏱️ 注意**: APIM Developer SKU のプロビジョニングには約15～20分かかります。デプロイ開始後、次のセクションの座学に進んでください。
 
-#### Step 5: デプロイ結果の確認
+#### Step 5: コンテナイメージのビルドと Container Apps へのデプロイ
+
+Bicep デプロイで作成された Azure Container Registry (ACR) にイメージをビルドし、Container Apps を更新します。
+
+```bash
+# デプロイ outputs から ACR 名を取得
+ACR_NAME=$(az deployment group show \
+  -g rg-mcp-workshop -n main \
+  --query "properties.outputs.acrName.value" -o tsv)
+ACR_SERVER=$(az deployment group show \
+  -g rg-mcp-workshop -n main \
+  --query "properties.outputs.acrLoginServer.value" -o tsv)
+
+echo "ACR: ${ACR_SERVER}"
+
+# ACR 上でサーバーサイドビルド（ローカルに Docker 不要）
+az acr build --registry "$ACR_NAME" \
+  --image "knowledge-api:latest" src/knowledge-api/
+
+az acr build --registry "$ACR_NAME" \
+  --image "incident-mcp:latest" src/incident-mcp-server/
+
+az acr build --registry "$ACR_NAME" \
+  --image "oncall-api:latest" src/oncall-api/
+
+# ACR 認証情報を取得して Container Apps を更新
+ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query "username" -o tsv)
+ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+
+az containerapp update \
+  --name ca-knowledge-api --resource-group rg-mcp-workshop \
+  --image "${ACR_SERVER}/knowledge-api:latest" \
+  --registry-server "$ACR_SERVER" \
+  --registry-username "$ACR_USERNAME" \
+  --registry-password "$ACR_PASSWORD"
+
+az containerapp update \
+  --name ca-incident-mcp --resource-group rg-mcp-workshop \
+  --image "${ACR_SERVER}/incident-mcp:latest" \
+  --registry-server "$ACR_SERVER" \
+  --registry-username "$ACR_USERNAME" \
+  --registry-password "$ACR_PASSWORD"
+
+az containerapp update \
+  --name ca-oncall-api --resource-group rg-mcp-workshop \
+  --image "${ACR_SERVER}/oncall-api:latest" \
+  --registry-server "$ACR_SERVER" \
+  --registry-username "$ACR_USERNAME" \
+  --registry-password "$ACR_PASSWORD"
+```
+
+> **💡 ポイント**: `az acr build` はクラウド側でビルドするため、ローカルに Docker Desktop が不要です。
+
+#### Step 6: デプロイ結果の確認
 
 ```bash
 # APIM エンドポイントの確認
 az apim show --name apim-mcp-workshop --resource-group rg-mcp-workshop \
   --query "gatewayUrl" -o tsv
+
+# ACR の確認
+az acr show --name "$ACR_NAME" --resource-group rg-mcp-workshop \
+  --query "loginServer" -o tsv
 
 # API Center の確認
 az apic show --name apic-mcp-workshop --resource-group rg-mcp-workshop \
@@ -248,6 +305,8 @@ az monitor app-insights component show \
 ### ✅ 確認ポイント
 
 - [ ] APIM ゲートウェイ URL にアクセスして応答を確認
+- [ ] ACR にイメージ（knowledge-api, incident-mcp, oncall-api）が存在する
+- [ ] Container Apps 3つが実イメージで稼働している（`/health` が `{"status":"ok"}` を返す）
 - [ ] Azure Portal で API Center リソースが表示される
 - [ ] Application Insights のインストルメンテーションキーを取得
 
@@ -255,9 +314,9 @@ az monitor app-insights component show \
 
 | 成果物 | 内容 |
 |---|---|
-| デプロイ済み環境 | APIM / API Center / Container Apps / App Insights |
+| デプロイ済み環境 | APIM / API Center / Container Apps / ACR / App Insights |
 | パラメータファイル | `infra/parameters.json` |
-| 接続情報メモ | APIM URL / API Center ID / App Insights Key |
+| 接続情報メモ | APIM URL / ACR Login Server / API Center ID / App Insights Key |
 
 ---
 
