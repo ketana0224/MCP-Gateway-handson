@@ -95,33 +95,35 @@ jobs:
 
       - name: Update Container Apps with new images
         run: |
-          # ACR 管理者資格情報を取得して Container Apps に直接セット
+          # ACR 管理者資格情報を取得
           ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query "username" -o tsv)
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
 
+          # まず各 Container App にレジストリ認証を登録
+          for app in ca-knowledge-api ca-incident-mcp ca-oncall-api; do
+            az containerapp registry set \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --server "$ACR_SERVER" \
+              --username "$ACR_USERNAME" \
+              --password "$ACR_PASSWORD"
+          done
+
+          # イメージを更新
           az containerapp update \
             --name ca-knowledge-api \
             --resource-group "$RESOURCE_GROUP" \
-            --image "${ACR_SERVER}/knowledge-api:${{ github.sha }}" \
-            --registry-server "$ACR_SERVER" \
-            --registry-username "$ACR_USERNAME" \
-            --registry-password "$ACR_PASSWORD"
+            --image "${ACR_SERVER}/knowledge-api:${{ github.sha }}"
 
           az containerapp update \
             --name ca-incident-mcp \
             --resource-group "$RESOURCE_GROUP" \
-            --image "${ACR_SERVER}/incident-mcp:${{ github.sha }}" \
-            --registry-server "$ACR_SERVER" \
-            --registry-username "$ACR_USERNAME" \
-            --registry-password "$ACR_PASSWORD"
+            --image "${ACR_SERVER}/incident-mcp:${{ github.sha }}"
 
           az containerapp update \
             --name ca-oncall-api \
             --resource-group "$RESOURCE_GROUP" \
-            --image "${ACR_SERVER}/oncall-api:${{ github.sha }}" \
-            --registry-server "$ACR_SERVER" \
-            --registry-username "$ACR_USERNAME" \
-            --registry-password "$ACR_PASSWORD"
+            --image "${ACR_SERVER}/oncall-api:${{ github.sha }}"
 
       - name: Get deployment outputs
         id: outputs
