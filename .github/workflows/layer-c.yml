@@ -10,7 +10,7 @@ on:
       location:
         description: 'Azure region'
         required: false
-        default: 'japaneast'
+        default: 'eastus'
       destroy:
         description: 'Delete resource group after verification (true/false)'
         required: false
