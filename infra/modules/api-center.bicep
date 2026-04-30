@@ -11,6 +11,7 @@ param location string
 resource apiCenter 'Microsoft.ApiCenter/services@2024-03-01' = {
   name: name
   location: location
+  #disable-next-line BCP187
   sku: {
     name: 'Free'
   }
