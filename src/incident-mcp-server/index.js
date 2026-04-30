@@ -3,6 +3,7 @@ const {
   StreamableHTTPServerTransport,
 } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 const express = require("express");
+const { z } = require("zod");
 
 // --- サンプルデータ ---
 let incidents = [
@@ -40,123 +41,122 @@ let incidents = [
 
 let nextId = 4;
 
-// --- MCP Server セットアップ ---
-const server = new McpServer({
-  name: "incident-mcp-server",
-  version: "1.0.0",
-  description: "障害チケット管理用MCP Server。チケットの参照・起票が可能。",
-});
+// --- MCP Server factory (stateless: new instance per request) ---
+function createServer() {
+  const srv = new McpServer({
+    name: "incident-mcp-server",
+    version: "1.0.0",
+    description: "障害チケット管理用MCP Server。チケットの参照・起票が可能。",
+  });
 
-// Tool: listIncidents
-server.tool(
-  "listIncidents",
-  "障害チケットの一覧を取得します。オプションでステータスや重要度でフィルタリングできます。",
-  {
-    status: {
-      type: "string",
-      description:
-        "フィルタするステータス (open / investigating / resolved / closed)",
+  // Tool: listIncidents
+  srv.tool(
+    "listIncidents",
+    "障害チケットの一覧を取得します。オプションでステータスや重要度でフィルタリングできます。",
+    {
+      status: z.enum(["open", "investigating", "resolved", "closed"]).optional().describe(
+        "フィルタするステータス (open / investigating / resolved / closed)"
+      ),
+      severity: z.enum(["critical", "high", "medium", "low"]).optional().describe(
+        "フィルタする重要度 (critical / high / medium / low)"
+      ),
     },
-    severity: {
-      type: "string",
-      description:
-        "フィルタする重要度 (critical / high / medium / low)",
-    },
-  },
-  async ({ status, severity }) => {
-    let results = [...incidents];
-    if (status) results = results.filter((i) => i.status === status);
-    if (severity) results = results.filter((i) => i.severity === severity);
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            { count: results.length, incidents: results },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  }
-);
-
-// Tool: getIncident
-server.tool(
-  "getIncident",
-  "指定されたIDの障害チケットの詳細を取得します。",
-  {
-    id: { type: "string", description: "障害チケットID (例: INC-001)" },
-  },
-  async ({ id }) => {
-    const incident = incidents.find((i) => i.id === id);
-    if (!incident) {
+    async ({ status, severity }) => {
+      let results = [...incidents];
+      if (status) results = results.filter((i) => i.status === status);
+      if (severity) results = results.filter((i) => i.severity === severity);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ error: `Incident ${id} not found` }),
+            text: JSON.stringify(
+              { count: results.length, incidents: results },
+              null,
+              2
+            ),
           },
         ],
-        isError: true,
       };
     }
-    return {
-      content: [{ type: "text", text: JSON.stringify(incident, null, 2) }],
-    };
-  }
-);
+  );
 
-// Tool: createIncident (副作用あり)
-server.tool(
-  "createIncident",
-  "新しい障害チケットを起票します。タイトル、重要度、説明が必要です。",
-  {
-    title: { type: "string", description: "チケットタイトル" },
-    severity: {
-      type: "string",
-      description: "重要度 (critical / high / medium / low)",
+  // Tool: getIncident
+  srv.tool(
+    "getIncident",
+    "指定されたIDの障害チケットの詳細を取得します。",
+    {
+      id: z.string().describe("障害チケットID (例: INC-001)"),
     },
-    description: { type: "string", description: "障害の詳細説明" },
-    assignee: {
-      type: "string",
-      description: "担当者名（省略時は未アサイン）",
+    async ({ id }) => {
+      const incident = incidents.find((i) => i.id === id);
+      if (!incident) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: `Incident ${id} not found` }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(incident, null, 2) }],
+      };
+    }
+  );
+
+  // Tool: createIncident (副作用あり)
+  srv.tool(
+    "createIncident",
+    "新しい障害チケットを起票します。タイトル、重要度、説明が必要です。",
+    {
+      title: z.string().describe("チケットタイトル"),
+      severity: z.enum(["critical", "high", "medium", "low"]).optional().describe(
+        "重要度 (critical / high / medium / low)"
+      ),
+      description: z.string().optional().describe("障害の詳細説明"),
+      assignee: z.string().optional().describe("担当者名（省略時は未アサイン）"),
     },
-  },
-  async ({ title, severity, description, assignee }) => {
-    const newIncident = {
-      id: `INC-${String(nextId++).padStart(3, "0")}`,
-      title,
-      severity: severity || "medium",
-      status: "open",
-      assignee: assignee || "未アサイン",
-      createdAt: new Date().toISOString(),
-      description: description || "",
-    };
-    incidents.push(newIncident);
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            { message: "Incident created successfully", incident: newIncident },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  }
-);
+    async ({ title, severity, description, assignee }) => {
+      const newIncident = {
+        id: `INC-${String(nextId++).padStart(3, "0")}`,
+        title,
+        severity: severity || "medium",
+        status: "open",
+        assignee: assignee || "未アサイン",
+        createdAt: new Date().toISOString(),
+        description: description || "",
+      };
+      incidents.push(newIncident);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { message: "Incident created successfully", incident: newIncident },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  return srv;
+}
 
 // --- Streamable HTTP Transport ---
 const app = express();
+app.use(express.json());
 
 app.post("/mcp", async (req, res) => {
-  const transport = new StreamableHTTPServerTransport("/mcp");
-  await server.connect(transport);
-  await transport.handleRequest(req, res);
+  // sessionIdGenerator: undefined = stateless mode (no session tracking per request)
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  const srv = createServer();
+  await srv.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 
 app.get("/mcp", async (req, res) => {
