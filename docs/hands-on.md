@@ -85,6 +85,7 @@ AIエージェントが安全に利用できるよう基盤を整備する任務
 | Azure API Management | Developer | MCP Gateway | 無料 |
 | Azure API Center | Free | MCP Server Registry | 無料 |
 | Azure Container Apps | Consumption | MCP Server / バックエンド API ホスト | $5〜$20/月 |
+| Azure Container Registry | Basic | コンテナイメージ管理・ビルド | $5〜$10/月 |
 | Microsoft Entra ID | Free Tier | OAuth 2.0 認証基盤 | 無料 |
 | Application Insights | Pay-as-you-go | 監査ログ・トレーシング | $5〜$15/月 |
 | Log Analytics Workspace | Pay-as-you-go | KQL クエリ基盤 | 上記に含む |
@@ -138,6 +139,15 @@ AIエージェントが安全に利用できるよう基盤を整備する任務
 │  On-call Schedule API│              │  (Streamable HTTP)   │
 │  (REST)              │              │                      │
 └──────────────────────┘              └──────────────────────┘
+           ↑                                        ↑
+           └──────────────┬─────────────────────────┘
+                          │ イメージ pull
+┌─────────────────────────┴──────────────────────────────────────┐
+│  Azure Container Registry (ACR) — Basic SKU                    │
+│                                                                │
+│  knowledge-api / incident-mcp / oncall-api イメージを管理       │
+│  az acr build でサーバーサイドビルド（Docker Desktop 不要）      │
+└────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────┐
 │  Azure API Center — MCP Server Registry                        │
