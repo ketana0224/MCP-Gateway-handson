@@ -80,8 +80,7 @@ jobs:
           echo "ACR_NAME=${ACR_NAME}" >> "$GITHUB_ENV"
           echo "ACR_SERVER=${ACR_SERVER}" >> "$GITHUB_ENV"
 
-          az acr login --name "$ACR_NAME"
-
+          # az acr build はサーバーサイドビルドのため az acr login 不要
           az acr build --registry "$ACR_NAME" \
             --image "knowledge-api:${{ github.sha }}" \
             src/knowledge-api/
@@ -96,15 +95,33 @@ jobs:
 
       - name: Update Container Apps with new images
         run: |
-          az deployment group create \
-            -g "$RESOURCE_GROUP" \
-            -f infra/main.bicep \
-            -p infra/parameters.json \
-            -p apimPublisherEmail=ci@example.com \
-            -p knowledgeApiImage="${ACR_SERVER}/knowledge-api:${{ github.sha }}" \
-            -p incidentMcpImage="${ACR_SERVER}/incident-mcp:${{ github.sha }}" \
-            -p oncallApiImage="${ACR_SERVER}/oncall-api:${{ github.sha }}" \
-            --mode Incremental
+          # ACR 管理者資格情報を取得して Container Apps に直接セット
+          ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+
+          az containerapp update \
+            --name ca-knowledge-api \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${ACR_SERVER}/knowledge-api:${{ github.sha }}" \
+            --registry-server "$ACR_SERVER" \
+            --registry-username "$ACR_USERNAME" \
+            --registry-password "$ACR_PASSWORD"
+
+          az containerapp update \
+            --name ca-incident-mcp \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${ACR_SERVER}/incident-mcp:${{ github.sha }}" \
+            --registry-server "$ACR_SERVER" \
+            --registry-username "$ACR_USERNAME" \
+            --registry-password "$ACR_PASSWORD"
+
+          az containerapp update \
+            --name ca-oncall-api \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${ACR_SERVER}/oncall-api:${{ github.sha }}" \
+            --registry-server "$ACR_SERVER" \
+            --registry-username "$ACR_USERNAME" \
+            --registry-password "$ACR_PASSWORD"
 
       - name: Get deployment outputs
         id: outputs
