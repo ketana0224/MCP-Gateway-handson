@@ -117,6 +117,8 @@ az group delete -n rg-mcp-workshop --yes --no-wait
 | C4 | APIM 経由で `https://<apim>.azure-api.net/oncall-mcp/mcp` が `tools/list` を返す | 同上 |
 | C5 | Log Analytics の `ApiManagementGatewayMCPLog` に直近10分のレコード | `queries/dashboard.kql` 流用 |
 
+**自動化:** `.github/workflows/layer-c.yml` 参照（Azure OIDC セットアップは `docs/layer-c-setup.md`）
+
 ---
 
 ## 6. 既知の制約 / 注意

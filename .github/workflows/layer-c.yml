@@ -1,0 +1,172 @@
+name: Layer C — Azure Deploy + MCP tools/list Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      resourceGroup:
+        description: 'Azure Resource Group name'
+        required: false
+        default: 'rg-mcp-workshop'
+      location:
+        description: 'Azure region'
+        required: false
+        default: 'japaneast'
+      destroy:
+        description: 'Delete resource group after verification (true/false)'
+        required: false
+        default: 'false'
+  pull_request:
+    types: [labeled, synchronize, reopened]
+    paths:
+      - 'infra/**'
+      - 'policies/**'
+      - '.github/workflows/layer-c.yml'
+
+concurrency:
+  group: layer-c-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy-and-verify:
+    name: deploy-and-verify
+    # For pull_request events, only run when the 'run-layer-c' label is present
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-layer-c'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      RESOURCE_GROUP: ${{ github.event.inputs.resourceGroup || 'rg-mcp-workshop' }}
+      LOCATION: ${{ github.event.inputs.location || 'japaneast' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create Resource Group
+        run: |
+          az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
+
+      - name: Deploy Bicep template
+        run: |
+          az deployment group create \
+            -g "$RESOURCE_GROUP" \
+            -f infra/main.bicep \
+            -p infra/parameters.json \
+            -p apimPublisherEmail=ci@example.com \
+            --mode Incremental
+
+      - name: Get deployment outputs
+        id: outputs
+        run: |
+          APIM_URL=$(az deployment group show \
+            -g "$RESOURCE_GROUP" \
+            -n main \
+            --query "properties.outputs.apimGatewayUrl.value" \
+            -o tsv 2>/dev/null || echo "")
+          echo "apimGatewayUrl=${APIM_URL}" >> "$GITHUB_OUTPUT"
+          echo "APIM Gateway URL: ${APIM_URL}"
+
+      - name: Verify MCP tools/list via APIM (C2/C3/C4)
+        id: verify
+        env:
+          APIM_URL: ${{ steps.outputs.outputs.apimGatewayUrl }}
+        run: |
+          declare -A results
+          overall_ok=true
+
+          for path in knowledge-mcp incident-mcp oncall-mcp; do
+            code=$(curl -sS -o /tmp/${path}.json -w "%{http_code}" \
+              -X POST "${APIM_URL}/${path}/mcp" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json, text/event-stream" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+              --max-time 30 || echo "000")
+            results[$path]=$code
+            echo "${path}: HTTP ${code}"
+
+            # 5xx or 000 (connection failure) are failures
+            if [[ "$code" == 5* ]] || [[ "$code" == "000" ]]; then
+              overall_ok=false
+            fi
+          done
+
+          # Write results to GITHUB_OUTPUT
+          echo "knowledge_mcp_status=${results[knowledge-mcp]}" >> "$GITHUB_OUTPUT"
+          echo "incident_mcp_status=${results[incident-mcp]}" >> "$GITHUB_OUTPUT"
+          echo "oncall_mcp_status=${results[oncall-mcp]}" >> "$GITHUB_OUTPUT"
+          echo "overall_ok=${overall_ok}" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          APIM_URL: ${{ steps.outputs.outputs.apimGatewayUrl }}
+          KNOWLEDGE_STATUS: ${{ steps.verify.outputs.knowledge_mcp_status }}
+          INCIDENT_STATUS: ${{ steps.verify.outputs.incident_mcp_status }}
+          ONCALL_STATUS: ${{ steps.verify.outputs.oncall_mcp_status }}
+          OVERALL_OK: ${{ steps.verify.outputs.overall_ok }}
+        with:
+          script: |
+            const apimUrl = process.env.APIM_URL || '(not available)';
+            const knowledgeStatus = process.env.KNOWLEDGE_STATUS || '???';
+            const incidentStatus = process.env.INCIDENT_STATUS || '???';
+            const oncallStatus = process.env.ONCALL_STATUS || '???';
+            const overallOk = process.env.OVERALL_OK === 'true';
+
+            const statusIcon = (code) => {
+              if (!code || code === '000') return '❌';
+              if (code.startsWith('5')) return '❌';
+              return '✅';
+            };
+
+            const body = [
+              '## 🚀 Layer C — Deploy & Verify Results',
+              '',
+              `**APIM Gateway URL:** \`${apimUrl}\``,
+              '',
+              '### MCP tools/list HTTP Status',
+              '',
+              '| Endpoint | HTTP Status | Result |',
+              '|---|---|---|',
+              `| \`${apimUrl}/knowledge-mcp/mcp\` | ${knowledgeStatus} | ${statusIcon(knowledgeStatus)} |`,
+              `| \`${apimUrl}/incident-mcp/mcp\` | ${incidentStatus} | ${statusIcon(incidentStatus)} |`,
+              `| \`${apimUrl}/oncall-mcp/mcp\` | ${oncallStatus} | ${statusIcon(oncallStatus)} |`,
+              '',
+              `**Overall:** ${overallOk ? '✅ PASS' : '❌ FAIL (5xx or connection error detected)'}`,
+              '',
+              '> ⚠️ **Note:** tools/list の中身は image 差し替え後に有効になります。',
+              '> コンテナイメージがプレースホルダ（`containerapps-helloworld`）のままの場合、',
+              '> HTTP ステータスが 200/4xx でも tools 配列は空またはエラーになります。',
+              '> 実際の MCP ツール動作確認には `src/*` のコンテナ化・push・image 差し替えが必要です。',
+              '',
+              `*Run triggered by: ${context.actor} at ${new Date().toISOString()}*`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Destroy Resource Group
+        if: >
+          github.event.inputs.destroy == 'true' ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-layer-c-destroy'))
+        run: |
+          echo "Deleting resource group: $RESOURCE_GROUP"
+          az group delete -n "$RESOURCE_GROUP" --yes --no-wait
