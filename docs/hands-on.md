@@ -444,6 +444,8 @@ Headers:
   Ocp-Apim-Subscription-Key: <your-subscription-key>
 ```
 
+> **💡 ポイント**: OAuth 2.0 Flow の入力欄は**空のまま**で構いません。Lab 1 ではサブスクリプションキー認証のみ使用します。OAuth 2.0 は Lab 3 で設定します。
+
 確認手順:
 1. **Connect** → 接続成功を確認
 2. **Tools** タブ → 3つのツール（searchArticles, getArticleById, listCategories）が表示される
@@ -564,6 +566,8 @@ URL: https://apim-mcp-workshop.azure-api.net/incident-mcp/mcp
 Headers:
   Ocp-Apim-Subscription-Key: <your-subscription-key>
 ```
+
+> **💡 ポイント**: OAuth 2.0 Flow の入力欄は**空のまま**で構いません。認証は Lab 3 で追加します。
 
 確認手順:
 1. `tools/list` → 3 つのツールが返る
