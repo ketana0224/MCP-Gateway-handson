@@ -1198,6 +1198,19 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 - MCP Inspector から連続でツールを呼び出し
 - 31 回目で `429 Too Many Requests` が返ることを確認
 
+> **⚠️ 401 が返る場合（トークン切れ）**: Lab 3 で取得したアクセストークンは通常 **1時間で期限切れ** になります。`401 Unauthorized` が返ったらトークンを再取得してください。
+>
+> ```powershell
+> # トークンを再取得（TokenCreatedWithOutdatedPolicies エラーの場合は az logout → az login も実施）
+> $SERVER_APP_ID = "b063657e-4af9-455b-bb1c-b2570693a03d"
+> $TOKEN = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
+> Write-Host "TOKEN length: $($TOKEN.Length)"
+> ```
+>
+> それでも 401 が続く場合（`TokenCreatedWithOutdatedPolicies` エラー）は CAE によるトークン強制無効化が原因です。`az logout` → `az login` で再ログイン後に上記コマンドを再実行してください。
+>
+> MCP Inspector を使っている場合は、Custom Headers の `Authorization` 値を新しいトークンで上書きし、**Disconnect → Connect** し直してください。
+
 #### Step 2: 相関IDの注入（10分）
 
 ```xml
@@ -1295,6 +1308,7 @@ az monitor metrics alert create `
 - [ ] Application Insights で相関IDによるトレースが確認できる
 - [ ] KQL クエリでツール呼び出し状況が可視化される
 - [ ] Payload bytes to log = 0 を設定した
+- [ ] 401 が返った場合はトークン再取得で解消できた
 
 ### 📦 成果物
 
