@@ -1322,7 +1322,6 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 
 1. 右ペインの **View as: Traces** を選択し、時間範囲を直近 30 分に設定
 2. 検索ボックスに `MCP Tool Call` と入力してフィルター
-   > **⚠️ 注意**: `source="mcp-gateway"` は `customDimensions` に格納されるためテキスト検索ではヒットしません。トレースメッセージの本文 `MCP Tool Call` で検索してください。フィルターを外して「View as: All」にするとより確実に確認できます。
 3. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
 4. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
