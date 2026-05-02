@@ -1348,6 +1348,11 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 
 #### Step 3: 診断設定の構成（10分）
 
+Step 2 の `<trace>` ポリシーは Application Insights へのトレース書き込みでした。このステップでは **APIM のゲートウェイログ全体を Log Analytics Workspace に流す**ための診断設定を追加します。これにより、Step 4 の KQL クエリで以下が可能になります。
+
+- `ApiManagementGatewayMCPLog` — MCPツール呼び出し単位でのレスポンスコード・所要時間の集計
+- `ApiManagementGatewayLogs` — GatewayLogs と JOIN して CorrelationId 経由でセッション追跡
+
 ```powershell
 # APIM の診断設定を構成
 $APIM_ID = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query id -o tsv
@@ -1361,6 +1366,8 @@ az monitor diagnostic-settings create `
 ```
 
 > **⚠️ 必須**: Payload bytes to log = 0 の設定を確認してください。
+
+> **⏱️ 注意**: 診断設定の反映後、Log Analytics にデータが流入し始めるまで最大 **15 分**かかります。Step 4 のクエリ実行前に少し待ってください。
 
 #### Step 4: KQL ダッシュボードの構築（15分）
 
