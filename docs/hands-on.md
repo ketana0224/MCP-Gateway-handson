@@ -1336,6 +1336,8 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 
    > **💡 CorrelationId の価値**: CorrelationId がなければ上記5つのイベントは別々のログとして散らばります。CorrelationId があることで「同一ツール呼び出しの全ホップ」を1つのトランザクションとして束ねて追跡できます。
 
+   ![App Insights エンドツーエンドトランザクションの詳細](./images/apim-appinsights-timeline.png)
+
 6. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
 > **💡 `Session=N/A` と「1 failed」について**: MCP Streamable HTTP では、セッション確立前の最初のリクエスト（initialize）には `Mcp-Session-Id` ヘッダーがないため `Session=N/A` と表示されます。また App Insights の「1 failed」は、このセッション初期化フェーズで APIM 内部が一時的な非2xx を返すことが原因で、MCP プロトコルの正常なハンドシェイク動作です。実際のツール呼び出し（`tools/call`）が成功していれば問題ありません。
