@@ -1251,7 +1251,8 @@ Write-Host "Logger: $LOGGER_NAME"
 $LOGGER_ID = "/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers/$LOGGER_NAME"
 
 # knowledge-search-mcp に Application Insights 診断を設定（verbosity=information）
-$diagBody = @{
+# az rest --body にJSONを直接渡すとPowerShellのエンコード問題が起きるため、一時ファイル経由で渡す
+$diagJson = @{
     properties = @{
         alwaysLog = "allErrors"
         verbosity = "information"
@@ -1260,11 +1261,15 @@ $diagBody = @{
     }
 } | ConvertTo-Json -Depth 5
 
+$tmpFile = New-TemporaryFile
+$diagJson | Set-Content -Path $tmpFile -Encoding utf8
+
 az rest --method PUT `
   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
-  --body $diagBody `
-  --headers "Content-Type=application/json" `
+  --body "@$tmpFile" `
   --query "properties.verbosity" -o tsv
+
+Remove-Item $tmpFile
 ```
 
 期待される出力: `information`
