@@ -1365,14 +1365,25 @@ az monitor diagnostic-settings create `
   --logs '[{"category":"GatewayLogs","enabled":true},{"category":"GatewayMCPLogs","enabled":true}]'
 ```
 
-> **⚠️ 必須: Payload bytes to log = 0 の設定**
+> **⚠️ 必須: Payload bytes to log = 0 の確認と設定**
 >
-> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。API 診断設定の `frontend.response.body.bytes` と `backend.response.body.bytes` を 0 に設定します（デフォルトは 0 ですが、明示的に指定しておくことを推奨）。
->
-> Step 2 で実行した診断設定の CLI コマンドに `frontend`/`backend` のペイロード設定を追加して再実行します:
+> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。まず現在値を確認し、0 でなければ設定します。
 >
 > ```powershell
 > $SUB = az account show --query id -o tsv
+> $DIAG_URL = "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01"
+>
+> # 現在値を確認
+> $current = az rest --method GET --url $DIAG_URL | ConvertFrom-Json
+> $frBytes = $current.properties.frontend.response.body.bytes
+> $brBytes = $current.properties.backend.response.body.bytes
+> Write-Host "frontend.response.body.bytes : $frBytes"
+> Write-Host "backend.response.body.bytes  : $brBytes"
+> ```
+>
+> 出力が `0` または空（未設定）であれば問題ありません。**0 以外の値が表示された場合**は以下を実行して上書きします:
+>
+> ```powershell
 > $LOGGER_NAME = az rest --method GET `
 >   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers?api-version=2022-08-01" `
 >   | ConvertFrom-Json | Select-Object -ExpandProperty value `
@@ -1399,10 +1410,9 @@ az monitor diagnostic-settings create `
 >
 > $tmpFile = New-TemporaryFile
 > $diagJson | Set-Content -Path $tmpFile -Encoding utf8
-> az rest --method PUT `
->   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
->   --body "@$tmpFile"
+> az rest --method PUT --url $DIAG_URL --body "@$tmpFile"
 > Remove-Item $tmpFile
+> Write-Host "設定完了"
 > ```
 
 > **⏱️ 注意**: 診断設定の反映後、Log Analytics にデータが流入し始めるまで最大 **15 分**かかります。Step 4 のクエリ実行前に少し待ってください。
