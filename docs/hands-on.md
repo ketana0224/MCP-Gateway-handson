@@ -1367,17 +1367,43 @@ az monitor diagnostic-settings create `
 
 > **⚠️ 必須: Payload bytes to log = 0 の設定**
 >
-> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。
+> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。API 診断設定の `frontend.response.body.bytes` と `backend.response.body.bytes` を 0 に設定します（デフォルトは 0 ですが、明示的に指定しておくことを推奨）。
 >
-> **⚠️ 注意**: `appinsights-mcp-workshop`（Application Insights リソース）ではなく、**API Management サービス**側の設定です。
+> Step 2 で実行した診断設定の CLI コマンドに `frontend`/`backend` のペイロード設定を追加して再実行します:
 >
-> **Portal での確認手順:**
-> 1. Azure Portal で **`apim-mcp-workshop`**（API Management サービス）を開く
-> 2. 左ブレードの「**監視**」セクション →「**Application Insights**」をクリック
-> 3. 一覧に表示された `appinsights-mcp-workshop` の行の**右端にある鉛筆（編集）アイコン**をクリック（行の名前リンクをクリックすると App Insights ポータルに遷移するので注意）
-> 4. 編集パネルの「**フロントエンド リクエスト**」「**フロントエンド レスポンス**」セクションを探す
-> 5. それぞれの「**ログに記録するペイロードのバイト数**」が **0** になっていることを確認
-> 6. 0 でない場合は `0` に変更して「**保存**」
+> ```powershell
+> $SUB = az account show --query id -o tsv
+> $LOGGER_NAME = az rest --method GET `
+>   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers?api-version=2022-08-01" `
+>   | ConvertFrom-Json | Select-Object -ExpandProperty value `
+>   | Where-Object { $_.properties.loggerType -eq "applicationInsights" } `
+>   | Select-Object -First 1 -ExpandProperty name
+> $LOGGER_ID = "/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers/$LOGGER_NAME"
+>
+> $diagJson = @{
+>     properties = @{
+>         alwaysLog = "allErrors"
+>         verbosity = "information"
+>         loggerId  = $LOGGER_ID
+>         sampling  = @{ samplingType = "fixed"; percentage = 100 }
+>         frontend  = @{
+>             request  = @{ body = @{ bytes = 0 } }
+>             response = @{ body = @{ bytes = 0 } }
+>         }
+>         backend   = @{
+>             request  = @{ body = @{ bytes = 0 } }
+>             response = @{ body = @{ bytes = 0 } }
+>         }
+>     }
+> } | ConvertTo-Json -Depth 10
+>
+> $tmpFile = New-TemporaryFile
+> $diagJson | Set-Content -Path $tmpFile -Encoding utf8
+> az rest --method PUT `
+>   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
+>   --body "@$tmpFile"
+> Remove-Item $tmpFile
+> ```
 
 > **⏱️ 注意**: 診断設定の反映後、Log Analytics にデータが流入し始めるまで最大 **15 分**かかります。Step 4 のクエリ実行前に少し待ってください。
 
