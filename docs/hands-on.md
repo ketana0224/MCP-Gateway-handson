@@ -1231,7 +1231,7 @@ Azure Portal での操作:
 2. 「**+ 追加**」をクリック
 3. Application Insights リソースとして `appinsights-mcp-workshop` を選択
 4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
-5. 「**保存**」をクリック
+5. 「**作成**」をクリック
 
 > **💡 ポイント**: この設定は APIM インスタンス全体の設定です。一度設定すれば全 API の `trace` ポリシーが同じ Application Insights に書き込みます。
 
