@@ -1223,9 +1223,9 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 
 **【事前設定】APIM に Application Insights ロガーを接続する**
 
-`trace` ポリシーがデータを Application Insights に送信するには、APIM と Application Insights の接続（ロガー設定）が必要です。**この設定がないと `trace` ポリシーを書いてもデータが届きません。**
+`trace` ポリシーがデータを Application Insights に送信するには、以下の **2段階**の設定が必要です。
 
-Azure Portal での操作:
+**① サービスレベル: ロガーの追加**
 
 1. **API Management** → 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
 2. 「**+ 追加**」をクリック
@@ -1233,9 +1233,18 @@ Azure Portal での操作:
 4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
 5. 「**作成**」をクリック
 
-> **💡 ポイント**: この設定は APIM インスタンス全体の設定です。一度設定すれば全 API の `trace` ポリシーが同じ Application Insights に書き込みます。
+**② API レベル: 詳細ログの有効化（冗長性の設定）**
 
-> **⚠️ データが届かない場合**: ロガー未設定のまま `trace` ポリシーを適用しても、Application Insights にはデータが現れません。まず上記の接続設定を完了させてください。
+> **⚠️ ここが重要**: グローバルロガーを追加しただけでは `trace` ポリシーのデータは届きません。`trace` ポリシーの `severity="information"` が出力されるには、APIレベルの診断設定でも verbosity を `情報（Information）` 以上に設定する必要があります（既定値は `エラー（Error）` のみ）。
+
+1. **API Management** → **APIs** → **MCP Servers** → `knowledge-search-mcp` を開く
+2. 上部メニュー「**設定**」タブをクリック
+3. 「**診断ログ**」セクション（ページ下部）→ **Application Insights** のトグルを **オン** にする
+4. **冗長性（Verbosity）** を「**情報（Information）**」に設定
+5. サンプリングレート: `100`
+6. 「**保存**」をクリック
+
+> **💡 ポイント**: この設定は API ごとに必要です。`incident-mcp` や `oncall-schedule-mcp` にも `trace` ポリシーを追加する場合は同様に設定します。
 
 ---
 
