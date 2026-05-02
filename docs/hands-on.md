@@ -1323,7 +1323,20 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 1. 右ペインの **View as: Traces** を選択し、時間範囲を直近 30 分に設定
 2. 検索ボックスに `MCP Tool Call` と入力してフィルター
 3. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
-4. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
+4. 左ペインのトレース項目をクリック → 右ペインに「**エンド ツー エンド トランザクションの詳細**」が表示される
+5. タイムラインに以下の5種類のイベントが CorrelationId で紐付けられて表示されることを確認
+
+   | # | 種別 | 内容 | 補足 |
+   |---|---|---|---|
+   | 1 | **Request** | `POST /knowledge-search-mcp/mcp` — Successful: false, 約5.4分 | SSE接続の維持時間。`Successful: false` は5分タイムアウト後に切断されるため（正常） |
+   | 2 | **Trace** | `MCP Tool Call: Session=N/A, CorrelationId=...` | `<trace>` ポリシーが Application Insights に書き込んだログ。initialize リクエストは Session=N/A が正常 |
+   | 3 | **Dependency** | `GET /api/articles/KB001` — Backend, 14ms | APIM → Container Apps（バックエンド）への呼び出し |
+   | 4 | **Request** | `GET /knowledge-search/api/articles/KB001` — Successful: true, 約15ms | REST API 側で記録された実リクエスト（200 OK） |
+   | 5 | **Exception** | `ClientConnectionFailure: Client connection was unexpectedly closed.` | APIM の SSE 5分タイムアウト（正常動作） |
+
+   > **💡 CorrelationId の価値**: CorrelationId がなければ上記5つのイベントは別々のログとして散らばります。CorrelationId があることで「同一ツール呼び出しの全ホップ」を1つのトランザクションとして束ねて追跡できます。
+
+6. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
 > **💡 `Session=N/A` と「1 failed」について**: MCP Streamable HTTP では、セッション確立前の最初のリクエスト（initialize）には `Mcp-Session-Id` ヘッダーがないため `Session=N/A` と表示されます。また App Insights の「1 failed」は、このセッション初期化フェーズで APIM 内部が一時的な非2xx を返すことが原因で、MCP プロトコルの正常なハンドシェイク動作です。実際のツール呼び出し（`tools/call`）が成功していれば問題ありません。
 
