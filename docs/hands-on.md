@@ -1261,11 +1261,12 @@ Azure Portal → API Management → APIs → MCP Servers → `knowledge-search-m
 
 **動作確認:**
 
-MCP Inspector でツールを呼び出した後、Azure Portal → Application Insights → **トランザクション検索** に移動し、以下のように確認します。
+MCP Inspector でツールを呼び出した後、Azure Portal → Application Insights → 左ブレード「**調査**」セクション → 「**検索**」（英語版では "Transaction search"）に移動し、以下のように確認します。
 
-1. フィルター: `mcp-gateway` ソース、直近 30 分
-2. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
-3. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
+1. 右ペインの **View as: Traces** を選択し、時間範囲を直近 30 分に設定
+2. 検索ボックスに `mcp-gateway` と入力してフィルター
+3. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
+4. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
 > **💡 ポイント**: Step 3 で診断設定を構成した後、`CorrelationId` を使って KQL クエリ（`ApiManagementGatewayMCPLog | where CorrelationId == "..."` ）で特定リクエストのログを絞り込めます。
 
