@@ -1221,6 +1221,24 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 
 #### Step 2: 相関IDの注入（10分）
 
+**【事前設定】APIM に Application Insights ロガーを接続する**
+
+`trace` ポリシーがデータを Application Insights に送信するには、APIM と Application Insights の接続（ロガー設定）が必要です。**この設定がないと `trace` ポリシーを書いてもデータが届きません。**
+
+Azure Portal での操作:
+
+1. **API Management** → 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
+2. 「**+ 追加**」をクリック
+3. Application Insights リソースとして `appinsights-mcp-workshop` を選択
+4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
+5. 「**保存**」をクリック
+
+> **💡 ポイント**: この設定は APIM インスタンス全体の設定です。一度設定すれば全 API の `trace` ポリシーが同じ Application Insights に書き込みます。
+
+> **⚠️ データが届かない場合**: ロガー未設定のまま `trace` ポリシーを適用しても、Application Insights にはデータが現れません。まず上記の接続設定を完了させてください。
+
+---
+
 **概要: 何をやっているか**
 
 | ポリシー | 役割 |
