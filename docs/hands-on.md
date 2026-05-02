@@ -1381,7 +1381,7 @@ az monitor diagnostic-settings create `
 > Write-Host "backend.response.body.bytes  : $brBytes"
 > ```
 >
-> 出力が `0` または空（未設定）であれば問題ありません。**0 以外の値が表示された場合**は以下を実行して上書きします:
+> 出力が `0` または**空（null）** であれば問題ありません。空の場合も「ボディをログに記録しない（= 0 バイト）」というデフォルト動作です。**数値が表示された場合**（例: `8192`）は以下を実行して上書きします:
 >
 > ```powershell
 > $LOGGER_NAME = az rest --method GET `
