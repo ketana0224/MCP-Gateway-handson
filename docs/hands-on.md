@@ -1326,6 +1326,8 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 4. 左ペインのトレース項目をクリック → 右ペインに「**エンド ツー エンド トランザクションの詳細**」が表示される
 5. タイムラインに以下の5種類のイベントが CorrelationId で紐付けられて表示されることを確認
 
+   ![App Insights エンドツーエンドトランザクションの詳細](./images/apim-appinsights-timeline.png)
+
    | # | 種別 | 内容 | 補足 |
    |---|---|---|---|
    | 1 | **Request** | `POST /knowledge-search-mcp/mcp` — Successful: false, 約5.4分 | SSE接続の維持時間。`Successful: false` は5分タイムアウト後に切断されるため（正常） |
