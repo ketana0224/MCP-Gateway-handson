@@ -1367,13 +1367,17 @@ az monitor diagnostic-settings create `
 
 > **⚠️ 必須: Payload bytes to log = 0 の設定**
 >
-> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。設定はサービスレベルの Application Insights ロガーで行います。
+> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。
+>
+> **⚠️ 注意**: `appinsights-mcp-workshop`（Application Insights リソース）ではなく、**API Management サービス**側の設定です。
 >
 > **Portal での確認手順:**
-> 1. **API Management**（`apim-mcp-workshop`）→ 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
-> 2. Step 2 で追加したロガー名（`appinsights-mcp-workshop`）の行をクリック
-> 3. 「**フロントエンド リクエスト**」「**フロントエンド レスポンス**」それぞれの「**ログに記録するペイロードのバイト数**」が **0** になっていることを確認
-> 4. 0 でない場合は `0` に変更して「**保存**」
+> 1. Azure Portal で **`apim-mcp-workshop`**（API Management サービス）を開く
+> 2. 左ブレードの「**監視**」セクション →「**Application Insights**」をクリック
+> 3. 一覧に表示された `appinsights-mcp-workshop` の行をクリック（編集パネルが右側に開く）
+> 4. 編集パネルの「**フロントエンド リクエスト**」「**フロントエンド レスポンス**」セクションを探す
+> 5. それぞれの「**ログに記録するペイロードのバイト数**」が **0** になっていることを確認
+> 6. 0 でない場合は `0` に変更して「**保存**」
 
 > **⏱️ 注意**: 診断設定の反映後、Log Analytics にデータが流入し始めるまで最大 **15 分**かかります。Step 4 のクエリ実行前に少し待ってください。
 
