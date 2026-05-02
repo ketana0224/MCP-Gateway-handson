@@ -1374,7 +1374,7 @@ az monitor diagnostic-settings create `
 > **Portal での確認手順:**
 > 1. Azure Portal で **`apim-mcp-workshop`**（API Management サービス）を開く
 > 2. 左ブレードの「**監視**」セクション →「**Application Insights**」をクリック
-> 3. 一覧に表示された `appinsights-mcp-workshop` の行をクリック（編集パネルが右側に開く）
+> 3. 一覧に表示された `appinsights-mcp-workshop` の行の**右端にある鉛筆（編集）アイコン**をクリック（行の名前リンクをクリックすると App Insights ポータルに遷移するので注意）
 > 4. 編集パネルの「**フロントエンド リクエスト**」「**フロントエンド レスポンス**」セクションを探す
 > 5. それぞれの「**ログに記録するペイロードのバイト数**」が **0** になっていることを確認
 > 6. 0 でない場合は `0` に変更して「**保存**」
