@@ -1334,9 +1334,9 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
    | 4 | **Request** | `GET /knowledge-search/api/articles/KB001` — Successful: true, 約15ms | REST API 側で記録された実リクエスト（200 OK） |
    | 5 | **Exception** | `ClientConnectionFailure: Client connection was unexpectedly closed.` | APIM の SSE 5分タイムアウト（正常動作） |
 
-   > **💡 CorrelationId の価値**: CorrelationId がなければ上記5つのイベントは別々のログとして散らばります。CorrelationId があることで「同一ツール呼び出しの全ホップ」を1つのトランザクションとして束ねて追跡できます。
-
    ![App Insights エンドツーエンドトランザクションの詳細](./images/apim-appinsights-timeline.png)
+
+   > **💡 CorrelationId の価値**: CorrelationId がなければ上記5つのイベントは別々のログとして散らばります。CorrelationId があることで「同一ツール呼び出しの全ホップ」を1つのトランザクションとして束ねて追跡できます。
 
 6. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
