@@ -1422,7 +1422,7 @@ az monitor diagnostic-settings create `
 Step 3 で有効化した診断設定により、APIM のゲートウェイログが Log Analytics Workspace に流れています。ここでは3つの KQL クエリを実行して、MCP ツール呼び出しの状況を可視化します。
 
 **操作手順:**
-1. Azure Portal 上部の検索バーに `law-mcp-workshop` と入力 → 候補に表示された **`law-mcp-workshop`**（Log Analytics ワークスペース）をクリック
+1. Azure Portal → **Log Analytics ワークスペース** → **`law-mcp-workshop`** を開く
 2. 左ブレード「**ログ**」をクリック
 3. 以下の各クエリをエディターに貼り付けて「**実行**」をクリック
 
