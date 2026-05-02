@@ -1184,20 +1184,26 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 <inbound>
     <base />
 
-    <!-- MCP セッション単位でレート制限（1分あたり30リクエスト） -->
+    <!-- MCP セッション単位でレート制限（1分あたり5リクエスト） -->
     <rate-limit-by-key
-        calls="30"
+        calls="5"
         renewal-period="60"
         counter-key="@(context.Request.Headers
-            .GetValueOrDefault("Mcp-Session-Id","anonymous"))"
-        increment-condition="@(context.Response.StatusCode >= 200)" />
+            .GetValueOrDefault("Mcp-Session-Id","anonymous"))" />
 
 </inbound>
 ```
 
+> **💡 `increment-condition` を省略する理由**: MCP のストリーミングレスポンスでは、レスポンスコードがアウトバウンド時に確定しないケースがあり、`increment-condition="@(context.Response.StatusCode >= 200)"` を指定するとカウントが増えず 429 が発生しないことがあります。省略するとリクエスト受信時に必ずカウントされるため動作が確実です。
+
 **動作確認:**
-- MCP Inspector から連続でツールを呼び出し
-- 31 回目で `429 Too Many Requests` が返ることを確認
+- MCP Inspector から連続でツールを呼び出し（`searchArticles` を何度も Call Tool）
+- 6 回目で `429 Too Many Requests` が返ることを確認
+
+> **⚠️ 429 が返らない場合の確認ポイント**:
+> 1. ポリシーが **保存済み**（Portal で「保存」を押したか）
+> 2. **60秒以内**に6回呼び出しているか（renewal-period 経過後はカウントがリセットされる）
+> 3. MCP Inspector の **Disconnect → Connect** でセッションを張り直していないか（セッション ID が変わるとカウントがリセットされる）
 
 > **⚠️ 401 が返る場合（トークン切れ）**: Lab 3 で取得したアクセストークンは通常 **1時間で期限切れ** になります。`401 Unauthorized` が返ったらトークンを再取得してください。
 >
