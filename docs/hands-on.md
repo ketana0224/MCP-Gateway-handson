@@ -1326,6 +1326,8 @@ MCP Inspector でツールを呼び出した後、Azure Portal → Application I
 3. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
 4. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
 
+> **💡 `Session=N/A` と「1 failed」について**: MCP Streamable HTTP では、セッション確立前の最初のリクエスト（initialize）には `Mcp-Session-Id` ヘッダーがないため `Session=N/A` と表示されます。また App Insights の「1 failed」は、このセッション初期化フェーズで APIM 内部が一時的な非2xx を返すことが原因で、MCP プロトコルの正常なハンドシェイク動作です。実際のツール呼び出し（`tools/call`）が成功していれば問題ありません。
+
 > **💡 ポイント**: Step 3 で診断設定を構成した後、`CorrelationId` を使って KQL クエリ（`ApiManagementGatewayMCPLog | where CorrelationId == "..."` ）で特定リクエストのログを絞り込めます。
 
 #### Step 3: 診断設定の構成（10分）
