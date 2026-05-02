@@ -1225,7 +1225,7 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 
 `trace` ポリシーがデータを Application Insights に送信するには、以下の **2段階**の設定が必要です。
 
-**① サービスレベル: ロガーの追加**
+**① サービスレベル: ロガーの追加（Portal）**
 
 1. **API Management** → 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
 2. 「**+ 追加**」をクリック
@@ -1233,18 +1233,43 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
 5. 「**作成**」をクリック
 
-**② API レベル: 詳細ログの有効化（冗長性の設定）**
+**② API レベル: 詳細ログの有効化（CLI）**
 
-> **⚠️ ここが重要**: グローバルロガーを追加しただけでは `trace` ポリシーのデータは届きません。`trace` ポリシーの `severity="information"` が出力されるには、APIレベルの診断設定でも verbosity を `情報（Information）` 以上に設定する必要があります（既定値は `エラー（Error）` のみ）。
+> **⚠️ ここが重要**: グローバルロガーを追加しただけでは `trace` ポリシーのデータは届きません。APIレベルの診断設定で verbosity を `information` に設定する必要があります。MCP Servers の設定画面には「診断ログ」UIが存在しないため、CLI で設定します。
 
-1. **API Management** → **APIs** → **MCP Servers** → `knowledge-search-mcp` を開く
-2. 上部メニュー「**設定**」タブをクリック
-3. 「**診断ログ**」セクション（ページ下部）→ **Application Insights** のトグルを **オン** にする
-4. **冗長性（Verbosity）** を「**情報（Information）**」に設定
-5. サンプリングレート: `100`
-6. 「**保存**」をクリック
+```powershell
+$SUB = az account show --query id -o tsv
 
-> **💡 ポイント**: この設定は API ごとに必要です。`incident-mcp` や `oncall-schedule-mcp` にも `trace` ポリシーを追加する場合は同様に設定します。
+# APIM に登録されているロガーの ID を取得
+$LOGGER_NAME = az rest --method GET `
+  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers?api-version=2022-08-01" `
+  | ConvertFrom-Json | Select-Object -ExpandProperty value `
+  | Where-Object { $_.properties.loggerType -eq "applicationInsights" } `
+  | Select-Object -First 1 -ExpandProperty name
+Write-Host "Logger: $LOGGER_NAME"
+
+$LOGGER_ID = "/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers/$LOGGER_NAME"
+
+# knowledge-search-mcp に Application Insights 診断を設定（verbosity=information）
+$diagBody = @{
+    properties = @{
+        alwaysLog = "allErrors"
+        verbosity = "information"
+        loggerId  = $LOGGER_ID
+        sampling  = @{ samplingType = "fixed"; percentage = 100 }
+    }
+} | ConvertTo-Json -Depth 5
+
+az rest --method PUT `
+  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
+  --body $diagBody `
+  --headers "Content-Type=application/json" `
+  --query "properties.verbosity" -o tsv
+```
+
+期待される出力: `information`
+
+> **💡 ポイント**: この設定は API ごとに必要です。`incident-mcp` や `oncall-schedule-mcp` にも `trace` ポリシーを追加する場合は上記の `--url` の `knowledge-search-mcp` 部分を対象 API 名に変えて同様に実行します。
 
 ---
 
