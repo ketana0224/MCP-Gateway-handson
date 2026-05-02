@@ -1365,7 +1365,17 @@ az monitor diagnostic-settings create `
   --logs '[{"category":"GatewayLogs","enabled":true},{"category":"GatewayMCPLogs","enabled":true}]'
 ```
 
-> **⚠️ 必須**: Payload bytes to log = 0 の設定を確認してください。
+> **⚠️ 必須: Payload bytes to log = 0 の設定**
+>
+> この設定を省略すると APIM がストリーミングレスポンスをバッファリングしようとして MCP の接続が破壊されます。以下の手順で確認・設定してください。
+>
+> **Portal での確認手順:**
+> 1. **API Management** → 左ブレード「**API**」→ `knowledge-search-mcp` を選択
+> 2. 上部の「**設定**」タブ → 「**診断ログ**」セクションを開く
+> 3. 「**Azure Monitor**」タブ（または「**Application Insights**」タブ）を選択
+> 4. **フロントエンド リクエスト** / **フロントエンド レスポンス** の「**ログに記録するペイロードのバイト数**」が **0** になっていることを確認
+> 5. 0 でない場合は `0` に変更して「**保存**」
+> 6. `oncall-schedule-mcp` / `incident-mcp` も同様に確認
 
 > **⏱️ 注意**: 診断設定の反映後、Log Analytics にデータが流入し始めるまで最大 **15 分**かかります。Step 4 のクエリ実行前に少し待ってください。
 
