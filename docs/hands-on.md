@@ -1419,9 +1419,18 @@ az monitor diagnostic-settings create `
 
 #### Step 4: KQL ダッシュボードの構築（15分）
 
-Azure Portal → Log Analytics Workspace → Logs
+Step 3 で有効化した診断設定により、APIM のゲートウェイログが Log Analytics Workspace に流れています。ここでは3つの KQL クエリを実行して、MCP ツール呼び出しの状況を可視化します。
 
-**クエリ1: MCP ツール呼び出し状況**
+**操作手順:**
+1. Azure Portal → **`law-mcp-workshop`**（Log Analytics Workspace）を開く
+2. 左ブレード「**ログ**」をクリック
+3. 以下の各クエリをエディターに貼り付けて「**実行**」をクリック
+
+> **⏱️ データが出ない場合**: Step 3 の診断設定追加直後はログの流入に最大 15 分かかります。「テーブルが見つからない」エラーが出る場合は、まず MCP Inspector でツールを数回呼び出してからクエリを実行してください。
+
+**クエリ1: MCP ツール呼び出し状況（時系列グラフ）**
+
+5分単位で呼び出し回数・エラー数・平均応答時間を集計します。
 ```kql
 ApiManagementGatewayMCPLog
 | where TimeGenerated > ago(1h)
@@ -1433,7 +1442,9 @@ ApiManagementGatewayMCPLog
 | render timechart
 ```
 
-**クエリ2: セッション別のアクティビティ**
+**クエリ2: CorrelationId 別のアクティビティ**
+
+`ApiManagementGatewayMCPLog`（MCP専用）と `ApiManagementGatewayLogs`（HTTP全体）を CorrelationId で JOIN し、1セッションあたりの呼び出し回数とエラー数を一覧表示します。
 ```kql
 ApiManagementGatewayMCPLog
 | where TimeGenerated > ago(1h)
@@ -1449,7 +1460,9 @@ ApiManagementGatewayMCPLog
 | take 20
 ```
 
-**クエリ3: レート制限（429）の発生状況**
+**クエリ3: レート制限（429）の発生状況（棒グラフ）**
+
+Step 1 で設定したレート制限により発生した 429 を時系列で集計します。429 が多いセッションは利用量が多すぎるクライアントの特定に使えます。
 ```kql
 ApiManagementGatewayLogs
 | where TimeGenerated > ago(1h)
