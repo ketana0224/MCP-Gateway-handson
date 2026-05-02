@@ -916,6 +916,7 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 $SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
 $TOKEN = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
 Write-Host "TOKEN length: $($TOKEN.Length)"
+Write-Host "TOKEN: $TOKEN"
 ```
 
 **MCP Inspector で APIM 経由の接続を確認::**
@@ -1205,6 +1206,7 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 > $SERVER_APP_ID = "b063657e-4af9-455b-bb1c-b2570693a03d"
 > $TOKEN = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
 > Write-Host "TOKEN length: $($TOKEN.Length)"
+> Write-Host "TOKEN: $TOKEN"
 > ```
 >
 > それでも 401 が続く場合（`TokenCreatedWithOutdatedPolicies` エラー）は CAE によるトークン強制無効化が原因です。`az logout` → `az login` で再ログイン後に上記コマンドを再実行してください。
