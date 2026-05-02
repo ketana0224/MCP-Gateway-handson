@@ -1221,9 +1221,30 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 
 #### Step 2: 相関IDの注入（10分）
 
+**概要: 何をやっているか**
+
+| ポリシー | 役割 |
+|---|---|
+| `set-header name="X-Correlation-Id"` | リクエストに一意のIDを付与。クライアントが `X-Correlation-Id` を送ってきた場合はそれを優先（`exists-action="skip"`）し、なければサーバー側で UUID を自動生成する |
+| `trace` | MCP セッションID と 相関IDを Application Insights のトレースログに書き出す（デバッグ用）。`GatewayLogs` と紐付けることで「どのユーザーの・どのセッションで・どのツールが呼ばれたか」を KQL で横断検索できるようになる |
+
+**なぜ相関IDが必要か:**  
+MCP の1回の操作（例: `searchArticles`）は APIM → バックエンド API → レスポンスの複数ホップをまたぎます。各ホップのログに同じ `X-Correlation-Id` が含まれていれば、問題発生時に1本の糸で全ログをたどれます。
+
+まず、Step 1 で設定したレート制限ポリシーに**追記**する形で適用します。
+
+Azure Portal → API Management → APIs → MCP Servers → `knowledge-search-mcp` → **ポリシー**
+
 ```xml
 <inbound>
     <base />
+
+    <!-- Step 1 で追加済み: レート制限 -->
+    <rate-limit-by-key
+        calls="5"
+        renewal-period="60"
+        counter-key="@(context.Request.Headers
+            .GetValueOrDefault("Mcp-Session-Id","anonymous"))" />
 
     <!-- 相関ID: クライアント提供があればそれを使い、なければ生成 -->
     <set-header name="X-Correlation-Id" exists-action="skip">
@@ -1237,6 +1258,16 @@ Knowledge Search MCP Server のポリシーにレート制限を追加します�
 
 </inbound>
 ```
+
+**動作確認:**
+
+MCP Inspector でツールを呼び出した後、Azure Portal → Application Insights → **トランザクション検索** に移動し、以下のように確認します。
+
+1. フィルター: `mcp-gateway` ソース、直近 30 分
+2. `Mcp-Session-Id` と `CorrelationId` が同一セッションのログに含まれることを確認
+3. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
+
+> **💡 ポイント**: Step 3 で診断設定を構成した後、`CorrelationId` を使って KQL クエリ（`ApiManagementGatewayMCPLog | where CorrelationId == "..."` ）で特定リクエストのログを絞り込めます。
 
 #### Step 3: 診断設定の構成（10分）
 
