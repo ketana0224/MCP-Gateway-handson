@@ -21,7 +21,7 @@
 - [Lab 5: API Center で MCP Server Registry を構築（45分）](#lab-5-api-center-で-mcp-server-registry-を構築45分)
 - [Lab 6: API Center で Skill を登録（30分）](#lab-6-api-center-で-skill-を登録30分)
 - [Lab 7: API Center Portal で MCP Server を発見（25分）](#lab-7-api-center-portal-で-mcp-server-を発見25分)
-- [Lab 9: セキュリティ深掘り（オプション・60分）](#lab-9-セキュリティ深掘りオプション60分)
+- [補足1: API Center 登録資産を Microsoft Foundry のプライベートカタログとして活用](#補足1-api-center-登録資産を-microsoft-foundry-のプライベートカタログとして活用)
 - [対象者別 学習パス](#対象者別-学習パス)
 - [参考資料](#参考資料)
 
@@ -705,7 +705,7 @@ curl.exe -s -X POST $MCP_URL `
 | 認証 | なし | なし（Lab 3 で Entra ID 認証を追加） |
 | レート制限 | なし | 設定可能（Lab 4 で実装） |
 | 監査ログ | なし | Azure Monitor / App Insights（Lab 4 で実装） |
-| Origin 検証 | なし | ポリシーで設定可能（Lab 9 で実装） |
+| Origin 検証 | なし | ポリシーで設定可能 |
 | IP 制限 | なし | ポリシーで設定可能 |
 
 ### ✅ 確認ポイント
@@ -2304,6 +2304,7 @@ Azure API Center の **Skill** 機能を使い、Lab 1・Lab 2 で構築した M
 > |---|---|---|
 > | Skill の手動登録（ポータル） | ✅ 動作確認済み | |
 > | Skill の詳細表示（Summary / Description / Source URL） | ✅ 動作確認済み | |
+> | Git リポジトリとの連携 | ✅ 動作確認済み | |
 
 ### 📖 概要説明（5分）
 
@@ -2351,8 +2352,8 @@ Skill は Azure API Center が提供する資産種別の一つで、**AI エー
    | **Summary** | 障害チケットの起票・確認・オンコール担当者照会を一連のフローとして実行する |
    | **Description** | ユーザーからインシデント報告を受け付け、① Knowledge Search で類似ナレッジを検索、② Oncall Schedule で当番担当者を確認、③ Incident MCP でチケットを起票する 3 ステップを実行するエージェントスキル。 |
    | **Lifecycle stage** | Preview |
-   | **Source URL** | `https://github.com/ketana0224/MCP-Gateway-handson` |
-   | **互換性** | `Entra ID テナントへのアクセスが必要` |
+   | **Source URL** | `空白` |
+   | **互換性** | Entra ID テナントへのアクセスが必要 |
    | **License** | MIT |
    | **Contact name** | ITサービスデスクチーム |
    | **Contact email** | itservicedesk@example.com |
@@ -2376,21 +2377,12 @@ Skill は Azure API Center が提供する資産種別の一つで、**AI エー
    - Summary / Description が正しく表示されている
    - Source URL が GitHub リポジトリ URL
 
-#### Step 3: 公開スキル（WorkIQ Copilot）を手動登録する（5分）
+#### Step 3: 公開スキル（microsoft-docs）を手動登録する（5分）
 
-GitHub の公開リポジトリ [awesome-copilot](https://github.com/github/awesome-copilot) には、コミュニティが公開している Copilot 向けスキルが収録されています。ここでは **WorkIQ Copilot Skill** を API Center に手動登録し、外部スキルもインベントリで一元管理できることを確認します。
+GitHub の公開リポジトリ [ketana0224/skill-repo](https://github.com/ketana0224/skill-repo) には、スキル定義ファイルが収録されています。ここでは **microsoft-docs スキル** を API Center に手動登録し、Git リポジトリと連携した外部スキルもインベントリで一元管理できることを確認します。
 
-> **📄 登録対象の SKILL.md**:
-> [github/awesome-copilot / skills/workiq-copilot/SKILL.md](https://github.com/github/awesome-copilot/blob/main/skills/workiq-copilot/SKILL.md)
->
-> ```yaml
-> ---
-> name: workiq-copilot
-> description: 'Guides the Copilot CLI on how to use the WorkIQ CLI/MCP server
->   to query Microsoft 365 Copilot data (emails, meetings, docs, Teams, people)
->   for live context, summaries, and recommendations.'
-> ---
-> ```
+> **📄 登録対象のスキル**:
+> [ketana0224/skill-repo/skills/microsoft-docs](https://github.com/ketana0224/skill-repo/tree/main/skills/microsoft-docs)
 
 1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「Inventory」→「資産」** を開く
 
@@ -2398,36 +2390,87 @@ GitHub の公開リポジトリ [awesome-copilot](https://github.com/github/awes
 
    | フォームフィールド | 入力値 |
    |---|---|
-   | **タイトル** | `workiq-copilot` |
-   | **識別** | `workiq-copilot`（タイトルから自動入力） |
-   | **要約** | `Guides the Copilot CLI on how to use the WorkIQ CLI/MCP server to query Microsoft 365 Copilot data` |
-   | **説明** | `WorkIQ (Public Preview) lets Copilot query Microsoft 365 data with natural language. Supports emails, meetings, documents, Teams messages, and people/project queries.` |
+   | **タイトル** | `microsoft-docs` |
+   | **識別** | `microsoft-docs`（タイトルから自動入力） |
+   | **要約** | （空白のまま — Git 連携により自動設定される） |
+   | **説明** | （空白のまま — Git 連携により自動設定される） |
    | **ライフサイクル ステージ** | Preview |
-   | **ソース URL** | `https://github.com/github/awesome-copilot/blob/main/skills/workiq-copilot/SKILL.md` |
-   | **互換性** | `npm install -g @microsoft/workiq、Microsoft 365 アカウント（管理者同意が必要）` |
+   | **ソース URL** | `https://github.com/ketana0224/skill-repo/tree/main/skills/microsoft-docs` |
+   | **互換性** | （空白のまま） |
 
 3. **「許可されたツール」** セクションは空欄のまま、**「作成」** をクリックする
 
-   > **💡 ポイント**: WorkIQ は独自の MCP Server（`workiq mcp` で起動）を持つため、API Center のインベントリには未登録です。許可されたツールは登録済み資産のみ選択できるため、今回は設定しません。
+   > **💡 ポイント**: 要約・説明フィールドを空白にしておくと、Git リポジトリとの連携によってスキル定義ファイル（`SKILL.md` 等）からメタデータが自動的に同期されます。
 
-4. **「資産」** 一覧で種別フィルターを **「スキル」** にし、`workiq-copilot` が表示されることを確認する
+4. **「資産」** 一覧で種別フィルターを **「スキル」** にし、`microsoft-docs` が表示されることを確認する
+
+   > **⚠️ この時点では `SKILL.md` の情報は反映されていません**
+   >
+   > 登録直後は要約・説明フィールドが空欄のままです。`skill-repo` の `SKILL.md` からメタデータが同期されるのは、**Step 4 で Git リポジトリ連携を設定した後**です。Step 4 完了後に詳細ページを再確認してください。
 
 > **⚠️ 現時点での制限（プレビュー）**: この Step は**台帳登録のみ**です。登録したスキルを GitHub Copilot で実際に利用するための導線（「Install in VS Code」からのファイル自動生成・custom instructions への組み込み）は 2026年5月時点で未実装です。API Center Portal からボタンをクリックすると VS Code は起動しますが、スキル定義ファイルは生成されません。
 
 > **📖 参考**: [Register and discover skills in Azure API Center](https://learn.microsoft.com/en-us/azure/api-center/register-discover-skills)
 
+#### Step 4: Git リポジトリ連携を確認する（5分）
+
+**機能説明**
+
+API Center の **「統合」** 機能（プレビュー）を使うと、GitHub リポジトリを API Center にリンクし、リポジトリ内のスキル定義ファイルを自動検出・継続的に同期できます。`SKILL.md` 等のファイルをリポジトリに配置するだけで、インベントリが GitOps ワークフローで管理されます。
+
+| 機能 | 説明 |
+|---|---|
+| **自動検出** | リポジトリ内の `SKILL.md` 等のスキル定義ファイルを自動スキャン |
+| **継続的同期** | リポジトリへの変更が検出され次第、インベントリを更新 |
+| **GitOps 管理** | スキル定義をコードとしてバージョン管理・レビュー可能 |
+
+> **⚠️ このハンズオンでは設定手順を省略します**
+>
+> Git リポジトリとの統合機能は **API Center Standard プラン** が必要です。本ハンズオンで使用している `apic-mcp-workshop` は Free プランのため、自分で統合を作成することはできません。
+>
+> ここでは**講師環境の設定済み API Center** を参照しながら、機能の動作を確認します。
+
+**設定済み環境を確認する**
+
+1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「プラットフォーム」→「統合」** を開く
+
+2. 一覧に以下のエントリが表示されていることを確認する:
+
+   | 項目 | 内容 |
+   |---|---|
+   | **ソース URL** | `Git リポジトリ`（`https://github.com/ketana0224/skill-repo`） |
+   | **状態** | **リンク済みおよび同期中** |
+
+   > **💡 設定の仕方（参考）**: Standard プランの API Center では、「＋ 新しい統合」→「Git リポジトリから（プレビュー）」を選択し、リポジトリ URL とブランチを入力するだけで連携が完了します。
+
+3. API Center → **「インベントリ」→「資産」** を開き、種別フィルターで **「スキル」** を選択する
+
+4. Step 3 で手動登録した `microsoft-docs` の詳細ページを開き、Git リポジトリから同期された要約・説明が反映されていることを確認する
+
+**参考画像**
+
+統合の設定場所（「プラットフォーム」→「統合」）:
+
+![Git 統合の設定場所](images/git_integration01.png)
+
+連携後の API Center Portal（SKILL.mdと同じ内容）:
+
+![連携後の API Center Portal](images/git_integration02.png)
+
 ### ✅ 確認ポイント
 
 - [ ] API Center の資産ページで `incident-response-skill` が「スキル」種別として表示される
 - [ ] スキルの詳細ページに要約 / 説明 が表示される
-- [ ] 資産ページで `workiq-copilot` が「スキル」種別として表示される
+- [ ] 資産ページで `microsoft-docs` が「スキル」種別として表示される
+- [ ] 「統合」ページで Git リポジトリ連携が「リンク済みおよび同期中」になっている（講師環境で確認）
 
 ### 📦 成果物
 
 | 成果物 | 内容 |
 |---|---|
 | API Center 登録済みスキル（独自） | インシデント対応スキル（許可されたツール付き） |
-| API Center 登録済みスキル（OSS） | WorkIQ Copilot（awesome-copilot より） |
+| API Center 登録済みスキル（Git 連携） | microsoft-docs（ketana0224/skill-repo より） |
+| Git リポジトリ統合（講師環境） | skill-repo と API Center の継続的同期設定（Standard プランが必要） |
 | スキルカタログ | API / MCP Server / スキルが揃った統合インベントリ |
 
 ---
@@ -2452,8 +2495,8 @@ VS Code へワンクリックでインストールする「発見 → 利用開�
 > | フィルターおよびセマンティック検索 | ✅ 動作確認済み | |
 > | API 仕様ドキュメント | ✅ 動作確認済み | |
 > | MCP 仕様ドキュメント（ツール一覧表示） | ⚠️ 一部動作 | パートナー MCP および APIM でラップした MCP は表示可。REST → APIM → MCP 変換はツール一覧が取得できない場合あり（未実装または設定方法未確認） |
+> | Skill 仕様ドキュメント | ✅ 動作確認済み | |
 > | Run tool（テスト実行） | ⚠️ 一部動作 | パートナー MCP のみ確認済み。APIM 経由の MCP は 401 Unauthorized が返る場合あり（後述） |
-> | VS Code へのワンクリックインストール | ✅ 動作確認済み | |
 
 ### 🔨 ハンズオン（20分）
 
@@ -2466,15 +2509,40 @@ API Center Developer Portal（プレビュー）は、組織内の API カタロ
 
 **このステップでやること**
 
-**① メタデータ定義を確認する**
+**① ポータルのアクセス設定を行う**
+
+Developer Portal を公開するには、まず「アクセス」タブで認証方式を選択する必要があります。
+
+1. Azure Portal → API Center（`apic-mcp-workshop`）→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
+2. **「アクセス」** タブを選択する
+3. 以下のいずれかを選択する
+
+   | 選択肢 | ボタン | 適した場面 |
+   |---|---|---|
+   | **Entra ID 認証**（推奨） | **「Entra ID の構成」** | 社内向け・認証済みユーザーのみに公開する場合 |
+   | **匿名アクセス** | **「匿名アクセスを許可する」** | 外部公開・認証不要のデモ環境など |
+
+   > **「Entra ID の構成」を選んだ場合（推奨）**
+   >
+   > 「クイック セットアップ」ボタンをクリックすると、Entra ID アプリ登録が自動作成され、
+   > `API Center Portal - apic-mcp-workshop` という名前のアプリが Entra ID テナントに登録されます。
+   > 完了すると「アクセス」タブに登録済みアプリの情報（クライアント ID・サインイン URL）が表示されます。
+   >
+   > **「匿名アクセスを許可する」を選んだ場合**
+   >
+   > サインインなしでポータルを閲覧できます。ただし API の詳細取得やツール実行（Run tool）は
+   > 認証が必要なため、認証設定なしでは制限される機能があります。
+
+4. 設定完了後、ページ上部の **「保存と公開」** をクリックする
+
+**② メタデータ定義を確認する**
 
 Lab 5 で定義したカスタムメタデータが登録されていることを確認します。
 
-1. Azure Portal → API Center（`apic-mcp-workshop`）→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
-2. **「メタデータ」** タブを選択する
-3. `Data Classification`・`Authentication Mode`・`SLA Target (%)`・`Owner Team` の 4 件が表示されていることを確認する
-4. ページ上部の **「保存と公開」** をクリックしてポータルを発行する
-5. **「API センター ポータルの表示」** をクリックしてポータルをブラウザで開く
+1. 同じ設定ページで **「メタデータ」** タブを選択する
+2. `Data Classification`・`Authentication Mode`・`SLA Target (%)`・`Owner Team` の 4 件が表示されていることを確認する
+3. ページ上部の **「保存と公開」** をクリックしてポータルを発行する
+4. **「API センター ポータルの表示」** をクリックしてポータルをブラウザで開く
 
    > **🔐 初回アクセス時: アクセス許可の同意ダイアログが表示されます**
    >
@@ -2545,8 +2613,7 @@ MCP Server の詳細ページの **「Documentation」** タブはツール一�
    >
    > | エラーメッセージ | 原因 | 対処 |
    > |---|---|---|
-   > | The MCP server requires authentication, but the server did not provide discovery information | API Center Portal が `/.well-known/oauth-authorization-server` を参照できない（このプレビューでの既知の挙動） | Lab 8 の VS Code OAuth フローで代わりに確認する |
-   > | ツール一覧が空欄・取得エラー | REST → APIM → MCP 変換の場合はプレビュー時点で未対応の可能性あり | APIM MCP Server として登録されているか確認 |
+   > | ツール一覧が空欄・取得エラー | REST → APIM → MCP 変換の場合はプレビュー時点で未対応の可能性あり | 確認中 |
 
 3. ツール一覧からツール（例: `listIncidents`）をクリックし、引数フォームが表示されることを確認する
 
@@ -2556,29 +2623,22 @@ MCP Server の詳細ページの **「Documentation」** タブはツール一�
    >
    > `tools/call`（ツール実行）は Entra ID 認証必須です。Portal がサインイン済みユーザーの Bearer トークンを APIM に正しく送信できていない場合に発生します。
    >
-   > | 確認事項 | 対処 |
-   > |---|---|
-   > | Step 2 iv（`access_as_user` スコープ付与）が未実施 | Step 2 iv のコマンドを再実行 |
-   > | Step 2 v（Named Value `McpClientAppId` の更新）が未実施 | Step 2 v のコマンドを再実行 |
-   > | Portal にサインインしていない | ポータル右上の **「Sign in」** からサインイン後に再試行 |
-   > | 上記すべて実施済みでも 401 が続く | プレビュー時点での既知の制限の可能性あり。Lab 8 の VS Code からの直接実行で代替確認する |
+   > | 対処 |
+   > |---|
+   > |プレビュー時点での既知の制限の可能性あり。|
 
-#### Step 4: VS Code へワンクリックインストール（5分）
+#### Step 4: VS Code へワンクリックインストール（参考）
 
 **機能説明**
 
 MCP Server の詳細ページには **「Install in VS Code」** ボタンがあり、クリックすると VS Code が起動して
-`.vscode/mcp.json` に接続設定が自動追加されます。手動でJSONを書く必要がありません。
+`.vscode/mcp.json` に接続設定が自動追加されます。手動で JSON を書く必要がありません。
 
-**このステップでやること**
-
-1. `incident-mcp` の詳細ページ右上の **「Install in VS Code」** ボタンをクリックする
-   - ボタン下に「Requires API Center extension」と表示されている場合は VS Code に [API Center 拡張機能](https://marketplace.visualstudio.com/items?itemName=apidev.azure-api-center) をインストールしてから再試行する
-2. VS Code の確認ダイアログで **Allow** を選択する
-3. `.vscode/mcp.json` に `incident-mcp` のエントリーが追加されていることを確認する
-
-> 💡 **ポイント**: ボタンが表示されない場合は、API Center → **「API Center ポータル（プレビュー）」→「設定」** →
-> **「保存と公開」** が完了しているか確認してください。
+> **⚠️ このハンズオンでは省略します**
+>
+> `.vscode/mcp.json` の設定は Lab 3〜6 で手動作成済みのため、ここでは実施しません。
+> 実際のプロジェクトでは、Portal の **「Install in VS Code」** ボタンを使うことで
+> 接続設定を簡単に配布できます。
 
 ### ✅ 確認ポイント
 
@@ -2588,224 +2648,133 @@ MCP Server の詳細ページには **「Install in VS Code」** ボタンがあ
 - [ ] タグ欄・Additional properties にメタデータ値が表示される
 - [ ] 資産種別タブの切り替えとセマンティック検索が動作する
 - [ ] Documentation タブでツール一覧が表示される
-- [ ] 「Install in VS Code」で `.vscode/mcp.json` にエントリーが追加される
 
 ### 📦 成果物
 
 | 成果物 | 内容 |
 |---|---|
-| `.vscode/mcp.json` | Portal 経由で自動生成された MCP Server 接続設定 |
-| 発見フロー確認 | Portal → フィルタリング → スキーマ閲覧 → VS Code インストール |
+| 発見フロー確認 | Portal → フィルタリング → スキーマ閲覧 |
 
 ---
 
-## Lab 9: セキュリティ深掘り（オプション・60分）
+## 補足1: API Center 登録資産を Microsoft Foundry のプライベートカタログとして活用
 
-### 🎯 目的
+API Center に登録した MCP サーバーや Skill などの資産は、**Microsoft Foundry のツールカタログ**からプライベートカタログとして直接参照できます。  
+エージェント開発者は Foundry の「ツールの選択 → カタログ」画面から組織内の承認済み資産を検索・選択でき、API Center が信頼できる単一のレジストリとして機能します。
 
-本番環境を見据えたセキュリティ強化を実装します。Origin 検証、Confused Deputy 対策、HITL ゲートウェイ設計を扱います。
-
-> **⚠️ 注意**: 本 Lab はオプションです。MCP Gateway/Proxy patterns は MCP 仕様としての標準化が未完了であり、Azure の実装レベルでの対応となります。
-
-### 🔨 ハンズオン（60分）
-
-#### Step 1: Origin 検証の実装（15分）
-
-MCP 仕様では、サーバーはすべての受信接続で **Origin ヘッダーを検証しなければならない（MUST）** と規定されています。
-
-Azure Portal → API Management → APIs → MCP Servers → 対象の MCP API → **ポリシー**
-
-以下のスクリプトでポリシー XML を生成し、クリップボードにコピーします:
-
-```powershell
-$policy = @"
-<policies>
-    <inbound>
-        <base />
-
-        <!-- Origin 検証（DNS Rebinding 攻撃対策） -->
-        <check-header name="Origin"
-                      failed-check-httpcode="403"
-                      failed-check-error-message="Forbidden: Invalid Origin"
-                      ignore-case="true">
-            <value>https://vscode.dev</value>
-            <value>vscode-file://vscode-app</value>
-            <value>https://github.dev</value>
-        </check-header>
-
-        <!-- MCP-Protocol-Version ヘッダー検証 -->
-        <check-header name="MCP-Protocol-Version"
-                      failed-check-httpcode="400"
-                      failed-check-error-message="Bad Request: Missing MCP protocol version">
-            <value>2025-06-18</value>
-            <value>2025-11-25</value>
-        </check-header>
-
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-"@
-$policy | Set-Clipboard
-Write-Host "ポリシー XML をクリップボードにコピーしました。Portal に貼り付けて保存してください。"
-```
-
-Azure Portal のポリシーエディターを開き、クリップボードの内容を貼り付けて保存します。
-
-**動作確認:**
-- Origin ヘッダーなし → 403 Forbidden
-- 不正な Origin → 403 Forbidden
-- 正しい Origin → 正常応答
-
-#### Step 2: Confused Deputy 攻撃の理解と対策（15分）
+### 連携の流れ
 
 ```
-Confused Deputy 攻撃とは:
-
-  悪意のあるMCPクライアントが、正規のMCP Proxy/Gatewayの
-  Static Client IDを使って、本来アクセスできないリソースに
-  アクセスする攻撃。
-
-  対策: Per-client consent（クライアントごとの同意管理）
+API Center（資産登録・ガバナンス）
+        ↓  Foundry 統合（プライベートレジストリ）
+Microsoft Foundry ツールカタログ
+        ↓
+エージェントへのツール追加
 ```
 
-APIM ポリシーで実装:
+### 設定例
 
-Azure Portal → API Management → APIs → MCP Servers → 対象の MCP API → **ポリシー**
+**API Center の資産一覧**（MCP / Skill / REST / A2A が統合管理されている状態）
 
-以下のスクリプトで実値を埋め込んだポリシー XML を生成し、クリップボードにコピーします:
+<!-- API Center の資産一覧画面: REST・MCP・Skill・A2A 資産が登録されており、Foundry 連携のソースとなる -->
+![API Center 資産一覧](images/foundry_integration01.png)
 
-```powershell
-$TENANT_ID     = az account show --query "tenantId" -o tsv
-$CLIENT_APP_ID = az ad app list --display-name "MCP Workshop Client" --query "[0].appId" -o tsv
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
+**Microsoft Foundry のカタログ表示**（API Center 経由でプライベートカタログとして表示される例）
 
-$policy = @"
-<policies>
-    <inbound>
-        <base />
+<!-- Microsoft Foundry のツールカタログ : API Center に登録した MCP サーバー（不動産情報サービス MCP 等）がプライベートカタログとして一覧表示される -->
+![Microsoft Foundry ツールカタログ](images/foundry_integration02.png)
 
-        <!-- クライアントアプリIDの検証（Confused Deputy 対策） -->
-        <validate-azure-ad-token tenant-id="$TENANT_ID">
-            <client-application-ids>
-                <!-- 許可されたクライアントのみ列挙 -->
-                <application-id>$CLIENT_APP_ID</application-id>
-            </client-application-ids>
-            <audiences>
-                <audience>api://$SERVER_APP_ID</audience>
-            </audiences>
-        </validate-azure-ad-token>
+### ポイント
 
-        <!-- 未許可クライアントの検出ログ -->
-        <choose>
-            <when condition="@(context.Response.StatusCode == 401)">
-                <trace source="security" severity="error">
-                    <message>Unauthorized client attempted access</message>
-                </trace>
-            </when>
-        </choose>
-
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-"@
-$policy | Set-Clipboard
-Write-Host "ポリシー XML をクリップボードにコピーしました。Portal に貼り付けて保存してください。"
-```
-
-Azure Portal のポリシーエディターを開き、クリップボードの内容を貼り付けて保存します。
-
-#### Step 3: HITL ゲートウェイ設計（概念設計・30分）
-
-高リスクなツール呼び出し（例: `createIncident`）に対して、APIM をゲートとした承認フローを設計します。
-
-**設計概要:**
-
-```
-[MCP Client] → tools/call(createIncident)
-    ↓
-[APIM Policy]
-    ├─ ツール名を判定
-    ├─ 高リスクツールの場合:
-    │   ├─ send-request → Logic Apps 承認フロー起動
-    │   ├─ 承認待ち（同期 or 非同期）
-    │   ├─ 承認済み → backend へ転送
-    │   └─ 拒否 → return-response で 403 応答
-    └─ 低リスクツールの場合:
-        └─ そのまま backend へ転送
-```
-
-> **💡 設計演習**: 以下の表を完成させて、各ツールのリスクレベルと HITL 要否を設計してください。
-
-| ツール | 副作用 | リスクレベル | HITL 要否 |
-|---|---|---|---|
-| searchArticles | なし（読み取り） | ? | ? |
-| getArticleById | なし（読み取り） | ? | ? |
-| listIncidents | なし（読み取り） | ? | ? |
-| createIncident | あり（書き込み） | ? | ? |
-| getCurrentOncall | なし（読み取り） | ? | ? |
-
-### ✅ 確認ポイント
-
-- [ ] Origin なしリクエストが 403 で拒否される
-- [ ] 未許可クライアントが 401 で拒否される
-- [ ] HITL 設計のリスク判定表を完成させた
-
-### 📦 成果物
-
-| 成果物 | 内容 |
+| 項目 | 内容 |
 |---|---|
-| セキュリティポリシー XML | Origin 検証 + MCP-Protocol-Version 検証 |
-| クライアント許可リスト | 許可されたアプリID一覧 |
-| HITL 設計書 | ツール別リスク判定表 + 承認フロー設計 |
+| 対象資産 | MCP サーバー・Skill・REST API・A2A エージェント |
+| 表示場所 | Foundry → ツール → ツールの選択 → **カタログ** タブ |
+| フィルター | 型・プロバイダー・カテゴリ・レジストリ・認証方式 |
+| メリット | 組織の承認済み資産のみをエージェントに追加可能。ガバナンスと開発生産性を両立 |
+
+> **注意:** この連携機能はプレビュー段階の場合があります。最新の対応状況は [Azure API Center ドキュメント](https://learn.microsoft.com/azure/api-center/) を確認してください。
 
 ---
 
 ## 対象者別 学習パス
 
-### 🛤️ パスA: API開発者（MCP初学者）— 4時間15分
+### Lab 一覧
+
+| Lab | タイトル | 所要時間 |
+|---|---|---|
+| Lab 0 | 環境構築・アーキテクチャ概観 | 30分 |
+| Lab 1 | REST API を MCP Server として公開 | 60分 |
+| Lab 2 | 既存 MCP Server を APIM 経由で公開 | 60分 |
+| Lab 3 | 認証・認可 — ユーザー代理実行とサービスID実行 | 60分 |
+| Lab 4 | ガバナンス・レート制限・監査ログ | 60分 |
+| Lab 5 | API Center で MCP Server Registry を構築 | 45分 |
+| Lab 6 | API Center で Skill を登録 | 30分 |
+| Lab 7 | API Center Portal で MCP Server を発見 | 25分 |
+
+---
+
+### 🛤️ パスA: API開発者（MCP初学者）— 4時間10分
+
+MCP の基本を押さえつつ、API Center でのカタログ管理と Skill 登録まで体験するコース。
 
 ```
 Lab 0 → Lab 1 → Lab 2 → Lab 5 → Lab 6 → Lab 7
-                 ↓
- REST→MCP変換、既存MCP公開、Registry登録、Skill登録、VS Code利用
+ 30分     60分    60分    45分    30分    25分
 ```
+
+| ゴール | 内容 |
+|---|---|
+| REST API を MCP として公開 | Lab 1 で Knowledge・Oncall API を APIM 経由で MCP 化 |
+| 既存 MCP Server を公開 | Lab 2 で Incident MCP Server を APIM 経由で公開 |
+| Registry 構築 | Lab 5 で API Center に MCP Server を登録・メタデータ付与 |
+| Skill 登録 | Lab 6 でインシデント対応スキルを登録・Git 連携 |
+| Portal 発見 | Lab 7 で Developer Portal から MCP をブラウズ |
+
+---
 
 ### 🛤️ パスB: クラウドアーキテクト — 5時間15分
 
+MCP の本番運用に必要な認証・ガバナンス・可観測性設計を中心に学ぶコース。
+
 ```
 Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5
-                          ↓
- 全体アーキテクチャ、認証設計、監査設計、Registry設計
+ 30分     60分    60分    60分    60分    45分
 ```
 
-### 🛤️ パスC: セキュリティエンジニア — 4時間30分
+| ゴール | 内容 |
+|---|---|
+| アーキテクチャ全体像の把握 | Lab 0〜2 で MCP Gateway の全体設計を理解 |
+| 認証設計 | Lab 3 でユーザー代理実行・サービスID実行を設計・実装 |
+| ガバナンス設計 | Lab 4 でレート制限・監査ログ・KQL ダッシュボードを構築 |
+| Registry 設計 | Lab 5 で API Center によるカタログ管理を設計 |
+
+---
+
+### 🛤️ パスC: セキュリティエンジニア — 3時間
+
+認証・認可・監査・Origin 検証に特化したセキュリティ重点コース。
 
 ```
-Lab 0 → Lab 1 → Lab 3 → Lab 4 → Lab 9
-                  ↓
- 認証設計、監査ログ、Origin検証、Confused Deputy対策、HITL
+Lab 0 → Lab 1 → Lab 3 → Lab 4
+ 30分     60分    60分    60分
 ```
 
-### 🛤️ パスD: フルコース — 7時間15分
+| ゴール | 内容 |
+|---|---|
+| MCP Gateway の基礎理解 | Lab 0〜1 でアーキテクチャと REST→MCP 変換を把握 |
+| 認証・認可の実装 | Lab 3 でユーザー代理実行・サービスID・Confused Deputy 対策 |
+| ガバナンス・監査 | Lab 4 でレート制限・監査ログ・Origin 検証を実装 |
+
+---
+
+### 🛤️ パスD: フルコース — 6時間10分
+
+全 Lab を通じて MCP Gateway の設計・実装・運用・カタログ管理を完全習得するコース。
 
 ```
-Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5 → Lab 6 → Lab 7 → Lab 8 → Lab 9
+Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5 → Lab 6 → Lab 7
+ 30分     60分    60分    60分    60分    45分    30分    25分
 ```
 
 ---
