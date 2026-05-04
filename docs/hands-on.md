@@ -19,8 +19,9 @@
 - [Lab 3: 認証・認可 — ユーザー代理実行とサービスID実行（60分）](#lab-3-認証認可--ユーザー代理実行とサービスid実行60分)
 - [Lab 4: ガバナンス・レート制限・監査ログ（60分）](#lab-4-ガバナンスレート制限監査ログ60分)
 - [Lab 5: API Center で MCP Server Registry を構築（45分）](#lab-5-api-center-で-mcp-server-registry-を構築45分)
-- [Lab 6: API Center Portal で MCP Server を発見（25分）](#lab-6-api-center-portal-で-mcp-server-を発見25分)
-- [Lab 8: セキュリティ深掘り（オプション・60分）](#lab-8-セキュリティ深掘りオプション60分)
+- [Lab 6: API Center で Skill を登録（30分）](#lab-6-api-center-で-skill-を登録30分)
+- [Lab 7: API Center Portal で MCP Server を発見（25分）](#lab-7-api-center-portal-で-mcp-server-を発見25分)
+- [Lab 9: セキュリティ深掘り（オプション・60分）](#lab-9-セキュリティ深掘りオプション60分)
 - [対象者別 学習パス](#対象者別-学習パス)
 - [参考資料](#参考資料)
 
@@ -533,7 +534,7 @@ Write-Host "oncall-schedule-mcp : mcpProperties 設定完了"
 
 MCP Server を Portal から作成すると、デフォルトで**サブスクリプション不要**の設定になっています。このワークショップでは **Entra ID（OAuth 2.0）を認証レイヤー** として使用するため、サブスクリプションキーは設定しません。
 
-> **💡 認証設計方針**: Lab 3 で Entra ID ポリシーを設定します。これにより API Center Portal（Lab 6）からサインイン済みの Bearer トークンが自動送信され、ツール呼び出しが可能になります。サブスクリプションキーを別途管理する必要はありません。
+> **💡 認証設計方針**: Lab 3 で Entra ID ポリシーを設定します。これにより API Center Portal（Lab 7）からサインイン済みの Bearer トークンが自動送信され、ツール呼び出しが可能になります。サブスクリプションキーを別途管理する必要はありません。
 
 #### Step 8: MCP Inspector で動作確認（10分）
 
@@ -704,7 +705,7 @@ curl.exe -s -X POST $MCP_URL `
 | 認証 | なし | なし（Lab 3 で Entra ID 認証を追加） |
 | レート制限 | なし | 設定可能（Lab 4 で実装） |
 | 監査ログ | なし | Azure Monitor / App Insights（Lab 4 で実装） |
-| Origin 検証 | なし | ポリシーで設定可能（Lab 8 で実装） |
+| Origin 検証 | なし | ポリシーで設定可能（Lab 9 で実装） |
 | IP 制限 | なし | ポリシーで設定可能 |
 
 ### ✅ 確認ポイント
@@ -2288,7 +2289,150 @@ Azure Portal → API Center → Portal overview
 
 ---
 
-## Lab 6: API Center Portal で MCP Server を発見（25分）
+## Lab 6: API Center で Skill を登録（30分）
+
+### 🎯 目的
+
+Azure API Center の **Skill** 機能を使い、Lab 1・Lab 2 で構築した MCP Server を活用する AI エージェント向けスキルを登録します。Skill の **Allowed tools** フィールドによる細粒度なガバナンスを体験します。
+
+> **⚠️ プレビュー機能に関する注意**
+>
+> API Center の Skill 機能は 2026年5月時点でパブリックプレビューです。
+> 本 Lab では**動作確認が取れた機能のみ**を扱います。
+>
+> | 機能 | 状態 | 備考 |
+> |---|---|---|
+> | Skill の手動登録（ポータル） | ✅ 動作確認済み | |
+> | Skill の詳細表示（Summary / Description / Source URL） | ✅ 動作確認済み | |
+
+### 📖 概要説明（5分）
+
+#### Skill とは
+
+Skill は Azure API Center が提供する資産種別の一つで、**AI エージェントが実行できる再利用可能な能力（capability）** を表します。主にソースコード（Git リポジトリ）と紐づけて管理します。
+
+| フィールド | 説明 |
+|---|---|
+| **Title** | スキルの表示名 |
+| **Summary** | 1 行の概要説明（ポータル一覧に表示） |
+| **Description** | ユースケースや動作詳細の全文説明 |
+| **Lifecycle stage** | Design / Preview / Production / Deprecated |
+| **Source URL** | スキルのソースコードが置かれた Git リポジトリ URL |
+| **互換性（Compatibility）** | スキルを使用するための要件、依存関係、前提条件。必要なソフトウェア・ツール（git、docker、プログラミング言語、システム要件、ネットワークアクセス要件など）および API キー・認証要件 |
+| **Allowed tools** | インベントリ内で呼び出し可能な API / MCP Server（ガバナンスの要） |
+| **License** | MIT / Apache 2.0 / Proprietary など |
+| **Contact** | オーナーチームの連絡先 |
+
+> **💡 ガバナンスポイント**: **Allowed tools** フィールドは、そのスキルが呼び出してよい API・MCP Server を明示的に制限します。「何でもできる」エージェントを防ぎ、セキュリティレビューをシンプルにするための宣言的なガバナンス機構です。
+
+#### Skills の登録方法
+
+| 方法 | 説明 | 向いているシナリオ |
+|---|---|---|
+| **ポータルから手動登録** | Azure Portal の Inventory > Assets から UI で登録 | 少数の重要スキルを個別管理 |
+| **Git リポジトリとの連携** | リポジトリに `skill.md` ファイルを置くと自動同期 | GitOps による大量スキルの継続的管理 |
+
+### 🔨 ハンズオン（25分）
+
+#### Step 1: ポータルから Skill を手動登録する（15分）
+
+このハンズオンでは **インシデント対応スキル** を登録します。Lab 1・Lab 2 で公開した 3 つの MCP Server（Knowledge Search・Incident・Oncall Schedule）をまとめて利用できる能力として定義します。
+
+1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「Inventory」→「Assets」** を開く
+
+2. ページ上部の **「＋ Register an asset」** ボタンをクリックし、ドロップダウンから **「Skill」** を選択する
+
+3. 登録フォームに以下の値を入力する:
+
+   | フィールド | 入力値 |
+   |---|---|
+   | **Title** | インシデント対応スキル |
+   | **Identification** | `incident-response-skill`（自動入力される、必要に応じて編集） |
+   | **Summary** | 障害チケットの起票・確認・オンコール担当者照会を一連のフローとして実行する |
+   | **Description** | ユーザーからインシデント報告を受け付け、① Knowledge Search で類似ナレッジを検索、② Oncall Schedule で当番担当者を確認、③ Incident MCP でチケットを起票する 3 ステップを実行するエージェントスキル。 |
+   | **Lifecycle stage** | Preview |
+   | **Source URL** | `https://github.com/ketana0224/MCP-Gateway-handson` |
+   | **互換性** | `Entra ID テナントへのアクセスが必要` |
+   | **License** | MIT |
+   | **Contact name** | ITサービスデスクチーム |
+   | **Contact email** | itservicedesk@example.com |
+
+4. **Allowed tools** セクションで **「＋ Add tool」** をクリックし、Lab 5 で API Center に登録済みの MCP Server を追加する:
+   - `knowledge-search-mcp`（Knowledge Search MCP Server）
+   - `incident-mcp`（Incident MCP Server）
+   - `oncall-schedule-mcp`（Oncall Schedule MCP Server）
+
+   > **💡 ポイント**: Allowed tools には API Center のインベントリに登録済みの資産のみ選択できます。Lab 5 で 3 件の MCP Server が同期済みであることを前提とします。
+
+5. **「Create」** ボタンをクリックして登録を完了する
+
+#### Step 2: 登録した Skill の詳細を確認・更新する（5分）
+
+1. Inventory > Assets ページに戻り、資産種別フィルターで **「Skills」** を選択する
+
+2. `incident-response-skill` が一覧に表示されていることを確認する
+
+3. スキル名をクリックして詳細ページを開き、以下を確認する:
+   - Summary / Description が正しく表示されている
+   - Source URL が GitHub リポジトリ URL
+
+#### Step 3: 公開スキル（WorkIQ Copilot）を手動登録する（5分）
+
+GitHub の公開リポジトリ [awesome-copilot](https://github.com/github/awesome-copilot) には、コミュニティが公開している Copilot 向けスキルが収録されています。ここでは **WorkIQ Copilot Skill** を API Center に手動登録し、外部スキルもインベントリで一元管理できることを確認します。
+
+> **📄 登録対象の SKILL.md**:
+> [github/awesome-copilot / skills/workiq-copilot/SKILL.md](https://github.com/github/awesome-copilot/blob/main/skills/workiq-copilot/SKILL.md)
+>
+> ```yaml
+> ---
+> name: workiq-copilot
+> description: 'Guides the Copilot CLI on how to use the WorkIQ CLI/MCP server
+>   to query Microsoft 365 Copilot data (emails, meetings, docs, Teams, people)
+>   for live context, summaries, and recommendations.'
+> ---
+> ```
+
+1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「Inventory」→「資産」** を開く
+
+2. **「＋ 資産の登録」→「スキル」** をクリックして登録フォームに以下の値を入力する:
+
+   | フォームフィールド | 入力値 |
+   |---|---|
+   | **タイトル** | `workiq-copilot` |
+   | **識別** | `workiq-copilot`（タイトルから自動入力） |
+   | **要約** | `Guides the Copilot CLI on how to use the WorkIQ CLI/MCP server to query Microsoft 365 Copilot data` |
+   | **説明** | `WorkIQ (Public Preview) lets Copilot query Microsoft 365 data with natural language. Supports emails, meetings, documents, Teams messages, and people/project queries.` |
+   | **ライフサイクル ステージ** | Preview |
+   | **ソース URL** | `https://github.com/github/awesome-copilot/blob/main/skills/workiq-copilot/SKILL.md` |
+   | **互換性** | `npm install -g @microsoft/workiq、Microsoft 365 アカウント（管理者同意が必要）` |
+
+3. **「許可されたツール」** セクションは空欄のまま、**「作成」** をクリックする
+
+   > **💡 ポイント**: WorkIQ は独自の MCP Server（`workiq mcp` で起動）を持つため、API Center のインベントリには未登録です。許可されたツールは登録済み資産のみ選択できるため、今回は設定しません。
+
+4. **「資産」** 一覧で種別フィルターを **「スキル」** にし、`workiq-copilot` が表示されることを確認する
+
+> **⚠️ 現時点での制限（プレビュー）**: この Step は**台帳登録のみ**です。登録したスキルを GitHub Copilot で実際に利用するための導線（「Install in VS Code」からのファイル自動生成・custom instructions への組み込み）は 2026年5月時点で未実装です。API Center Portal からボタンをクリックすると VS Code は起動しますが、スキル定義ファイルは生成されません。
+
+> **📖 参考**: [Register and discover skills in Azure API Center](https://learn.microsoft.com/en-us/azure/api-center/register-discover-skills)
+
+### ✅ 確認ポイント
+
+- [ ] API Center の資産ページで `incident-response-skill` が「スキル」種別として表示される
+- [ ] スキルの詳細ページに要約 / 説明 が表示される
+- [ ] 資産ページで `workiq-copilot` が「スキル」種別として表示される
+
+### 📦 成果物
+
+| 成果物 | 内容 |
+|---|---|
+| API Center 登録済みスキル（独自） | インシデント対応スキル（許可されたツール付き） |
+| API Center 登録済みスキル（OSS） | WorkIQ Copilot（awesome-copilot より） |
+| スキルカタログ | API / MCP Server / スキルが揃った統合インベントリ |
+
+---
+
+## Lab 7: API Center Portal で MCP Server を発見（25分）
 
 ### 🎯 目的
 
@@ -2401,7 +2545,7 @@ MCP Server の詳細ページの **「Documentation」** タブはツール一�
    >
    > | エラーメッセージ | 原因 | 対処 |
    > |---|---|---|
-   > | The MCP server requires authentication, but the server did not provide discovery information | API Center Portal が `/.well-known/oauth-authorization-server` を参照できない（このプレビューでの既知の挙動） | Lab 7 の VS Code OAuth フローで代わりに確認する |
+   > | The MCP server requires authentication, but the server did not provide discovery information | API Center Portal が `/.well-known/oauth-authorization-server` を参照できない（このプレビューでの既知の挙動） | Lab 8 の VS Code OAuth フローで代わりに確認する |
    > | ツール一覧が空欄・取得エラー | REST → APIM → MCP 変換の場合はプレビュー時点で未対応の可能性あり | APIM MCP Server として登録されているか確認 |
 
 3. ツール一覧からツール（例: `listIncidents`）をクリックし、引数フォームが表示されることを確認する
@@ -2417,7 +2561,7 @@ MCP Server の詳細ページの **「Documentation」** タブはツール一�
    > | Step 2 iv（`access_as_user` スコープ付与）が未実施 | Step 2 iv のコマンドを再実行 |
    > | Step 2 v（Named Value `McpClientAppId` の更新）が未実施 | Step 2 v のコマンドを再実行 |
    > | Portal にサインインしていない | ポータル右上の **「Sign in」** からサインイン後に再試行 |
-   > | 上記すべて実施済みでも 401 が続く | プレビュー時点での既知の制限の可能性あり。Lab 7 の VS Code からの直接実行で代替確認する |
+   > | 上記すべて実施済みでも 401 が続く | プレビュー時点での既知の制限の可能性あり。Lab 8 の VS Code からの直接実行で代替確認する |
 
 #### Step 4: VS Code へワンクリックインストール（5分）
 
@@ -2455,7 +2599,7 @@ MCP Server の詳細ページには **「Install in VS Code」** ボタンがあ
 
 ---
 
-## Lab 8: セキュリティ深掘り（オプション・60分）
+## Lab 9: セキュリティ深掘り（オプション・60分）
 
 ### 🎯 目的
 
@@ -2634,12 +2778,12 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 
 ## 対象者別 学習パス
 
-### 🛤️ パスA: API開発者（MCP初学者）— 3時間45分
+### 🛤️ パスA: API開発者（MCP初学者）— 4時間15分
 
 ```
-Lab 0 → Lab 1 → Lab 2 → Lab 5 → Lab 6
+Lab 0 → Lab 1 → Lab 2 → Lab 5 → Lab 6 → Lab 7
                  ↓
- REST→MCP変換、既存MCP公開、Registry登録、VS Code利用
+ REST→MCP変換、既存MCP公開、Registry登録、Skill登録、VS Code利用
 ```
 
 ### 🛤️ パスB: クラウドアーキテクト — 5時間15分
@@ -2653,15 +2797,15 @@ Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5
 ### 🛤️ パスC: セキュリティエンジニア — 4時間30分
 
 ```
-Lab 0 → Lab 1 → Lab 3 → Lab 4 → Lab 8
+Lab 0 → Lab 1 → Lab 3 → Lab 4 → Lab 9
                   ↓
  認証設計、監査ログ、Origin検証、Confused Deputy対策、HITL
 ```
 
-### 🛤️ パスD: フルコース — 6時間45分
+### 🛤️ パスD: フルコース — 7時間15分
 
 ```
-Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5 → Lab 6 → Lab 7 → Lab 8
+Lab 0 → Lab 1 → Lab 2 → Lab 3 → Lab 4 → Lab 5 → Lab 6 → Lab 7 → Lab 8 → Lab 9
 ```
 
 ---
