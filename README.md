@@ -17,6 +17,10 @@ Azure API Management を MCP Gateway、API Center を MCP Server Registry とし
 - VS Code / GitHub Copilot Agent Mode から MCP Server を利用する
 - API Center 登録資産を Microsoft Foundry のプライベートカタログとして活用する
 
+## 🚀 ハンズオンを始める
+
+**[→ docs/hands-on.md を開く](docs/hands-on.md)**
+
 ## 📂 リポジトリ構成
 
 ```
