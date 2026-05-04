@@ -150,6 +150,15 @@ az group delete -n rg-mcp-workshop --yes --no-wait
   - `src/oncall-api/index.js` のサンプル日付（2026-04-28〜2026-05-02）— ハンズオン手順の前提
 - **PR 説明には**「Layer A の A1〜A7 をどう確認したか」を記載する
 
+### MCP Inspector を使う際の注意（エージェント必読）
+
+- **APIM の MCP エンドポイントのテストには MCP Inspector を使わないこと。代わりに curl (POST) を使う。**
+  - Inspector 0.9.x 以前: SSE transport のみ → APIM に POST できない
+  - Inspector 0.10.x 以降: Streamable HTTP は対応しているが、接続時に OAuth auto-discovery (`GET /.well-known/oauth-authorization-server`) を実行し、さらに RFC 7591 Dynamic Client Registration (DCR) を試みる。APIM は DCR をサポートしていないため「Incompatible auth server: does not support dynamic client registration」エラーで接続失敗する（well-known が 404 でも 200 でも同様）
+- curl でテストする場合は必ず `POST` を使う（GET は 404 になる）。
+- **ローカル MCP サーバー**（`localhost:3001` 等、Container Apps 直接）のテストには Inspector が使える。
+- **Streamable HTTP と curl**: MCP の Streamable HTTP トランスポートは HTTP POST リクエスト。`curl -X POST -H "Accept: application/json, text/event-stream"` で呼べる。レスポンスは `event: message / data: {...} / event: close` 形式。
+
 ---
 
 ## 8. 参考リンク

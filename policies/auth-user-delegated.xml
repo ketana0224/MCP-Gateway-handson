@@ -22,7 +22,7 @@
             </audiences>
         </validate-azure-ad-token>
 
-        <!-- ユーザーIDをカスタムヘッダーに抽出（監査ログ用） -->
+        <!-- ユーザーIDをカスタムヘッダーに抽出（バックエンド伝播用） -->
         <set-header name="X-User-Id" exists-action="override">
             <value>@(context.Request.Headers
                 .GetValueOrDefault("Authorization","")
@@ -30,13 +30,18 @@
                 .GetValueOrDefault("oid","unknown"))</value>
         </set-header>
 
-        <!-- ユーザー表示名をカスタムヘッダーに抽出 -->
-        <set-header name="X-User-Name" exists-action="override">
-            <value>@(context.Request.Headers
-                .GetValueOrDefault("Authorization","")
-                .AsJwt()?.Claims
-                .GetValueOrDefault("name","unknown"))</value>
-        </set-header>
+        <!-- 監査トレース: 誰が何の MCP ツールを呼び出したか（JWT 検証後に記録） -->
+        <trace source="mcp-caller" severity="information">
+            <message>@{
+                var jwt     = context.Request.Headers.GetValueOrDefault("Authorization", "")
+                               .Replace("Bearer ", "").AsJwt();
+                var oid     = jwt?.Claims.GetValueOrDefault("oid", "unknown");
+                var upn     = jwt?.Claims.GetValueOrDefault("upn", "unknown");
+                var session = context.Request.Headers.GetValueOrDefault("Mcp-Session-Id", "N/A");
+                var corr    = context.RequestId;
+                return $"caller_oid={oid} upn={upn} session={session} correlation={corr}";
+            }</message>
+        </trace>
 
     </inbound>
     <backend>

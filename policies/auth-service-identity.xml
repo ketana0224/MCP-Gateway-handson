@@ -2,18 +2,25 @@
   サービスID実行（Service Identity）ポリシー
   Lab 3 — On-call Schedule MCP Server 用
 
-  APIM の Managed Identity でバックエンドに認証します。
-  ユーザーコンテキストは不要なシナリオ向け。
+  アプリトークン（Managed Identity / サービスプリンシパル）でインバウンド認証します。
+  ユーザーコンテキストは不要なシナリオ向け（X-User-Id 注入なし）。
 -->
 <policies>
     <inbound>
         <base />
-        <!-- インバウンドはサブスクリプションキーで認証（デフォルト） -->
+        <!-- パターンB: アプリトークン（MI / サービスプリンシパル）でインバウンド認証 -->
+        <validate-azure-ad-token
+            tenant-id="{{EntraTenantId}}"
+            header-name="Authorization"
+            failed-validation-httpcode="401"
+            failed-validation-error-message="Unauthorized: Invalid or missing token">
+            <audiences>
+                <audience>{{McpServerAppId}}</audience>
+            </audiences>
+        </validate-azure-ad-token>
     </inbound>
     <backend>
-        <!-- Managed Identity でバックエンド認証 -->
-        <authentication-managed-identity
-            resource="api://{{OncallBackendAppId}}" />
+        <base />
     </backend>
     <outbound>
         <base />

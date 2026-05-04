@@ -23,7 +23,7 @@ const openApiSpec = {
     "/api/oncall/current": {
       get: {
         operationId: "getCurrentOncall",
-        summary: "getCurrentOncall",
+        summary: "現在のオンコール担当者を取得します",
         description: "本日のオンコール担当者（プライマリ・セカンダリ）とチーム情報を返します。",
         responses: { 200: { description: "現在の当番情報" } },
       },
@@ -31,7 +31,7 @@ const openApiSpec = {
     "/api/oncall/{date}": {
       get: {
         operationId: "getScheduleByDate",
-        summary: "getScheduleByDate",
+        summary: "日付を指定してオンコール担当者を取得します",
         description: "日付（YYYY-MM-DD形式）を指定して、その日のオンコール担当者とチーム情報を取得します。",
         parameters: [
           { name: "date", in: "path", required: true, schema: { type: "string" }, description: "日付 (YYYY-MM-DD)" },

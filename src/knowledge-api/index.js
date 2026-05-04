@@ -66,7 +66,7 @@ const openApiSpec = {
     "/api/categories": {
       get: {
         operationId: "listCategories",
-        summary: "listCategories",
+        summary: "ナレッジカテゴリの一覧を取得します",
         description: "社内ナレッジベースのカテゴリ一覧を取得します。カテゴリIDと表示名を返します。",
         responses: { 200: { description: "カテゴリ一覧" } },
       },
@@ -74,7 +74,7 @@ const openApiSpec = {
     "/api/articles/search": {
       post: {
         operationId: "searchArticles",
-        summary: "searchArticles",
+        summary: "キーワードでナレッジ記事を全文検索します",
         description: "キーワードで社内ナレッジ記事を全文検索します。タイトル・本文・タグを横断検索し、関連度順に記事リストを返します。",
         requestBody: {
           required: true,
@@ -96,7 +96,7 @@ const openApiSpec = {
     "/api/articles/{id}": {
       get: {
         operationId: "getArticleById",
-        summary: "getArticle",
+        summary: "記事IDを指定してナレッジ記事の詳細を取得します",
         description: "記事IDを指定して社内ナレッジ記事の詳細（タイトル・本文・カテゴリ・更新日時）を取得します。",
         parameters: [
           {
