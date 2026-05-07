@@ -3,7 +3,7 @@
 > **レベル**: L300（中級〜上級）  
 > **所要時間**: コア約5時間45分 ＋ オプション1時間
 
-Azure API Management を MCP Gateway、API Center を MCP Server Registry として活用し、AIエージェントが業務ツールに安全にアクセスする基盤を構築するハンズオンワークショップです。
+Azure API Management を MCP Gateway、API Center を MCP Server と SKILL Registry として活用し、AIエージェントが業務ツールに安全にアクセスする基盤を構築するハンズオンワークショップです。
 
 ## 🎯 学習目標
 
