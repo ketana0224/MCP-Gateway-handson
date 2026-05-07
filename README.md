@@ -1,4 +1,4 @@
-# MCP Gateway ハンズオン — Azure API Management × API Center × MCP
+# MCP Gateway ハンズオン — Azure API Management × API Center × MCP & SKILL
 
 > **レベル**: L300（中級〜上級）  
 > **所要時間**: コア約5時間45分 ＋ オプション1時間
