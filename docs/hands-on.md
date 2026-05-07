@@ -1,4 +1,4 @@
-# Azure API Management × API Center × MCP ハンズオンワークショップ
+# Azure API Management × API Center × MCP & SKILL ハンズオンワークショップ
 
 ## 「AIエージェント基盤-MCP関連の構築」
 
@@ -31,7 +31,7 @@
 
 ### テーマ
 
-任意のAIエージェント（このワークショップでは、社内ITサービスデスクで利用されるAIエージェント）が、**Remote MCP Server**(このワークショップでは、**社内ナレッジ検索**・**障害チケット起票**・**オンコール確認**など)の業務ツールに安全にアクセスできる基盤を、Azure API Management（APIM）と API Center を使って構築します。
+任意のAIエージェント（このワークショップでは、社内ITサービスデスクで利用されるAIエージェント）が、**Remote MCP Server**(このワークショップでは、**社内ナレッジ検索**・**障害チケット起票**・**オンコール確認**など)やSKILLなどの業務ツールに安全にアクセスできる基盤を、Azure API Management（APIM）と API Center を使って構築します。
 
 ### 学習目標
 
