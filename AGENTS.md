@@ -81,16 +81,21 @@ az provider register -n Microsoft.KeyVault --wait
 az provider register -n Microsoft.Insights --wait
 az provider register -n Microsoft.OperationalInsights --wait
 
-az group create -n rg-mcp-workshop -l japaneast
-az deployment group create \
-  -g rg-mcp-workshop \
-  -f infra/main.bicep \
-  -p infra/parameters.json
+# userId と location はテスト参加者ごとに変える（例: agent01 / japaneast）
+$env:USER_ID  = "agent01"
+$env:LOCATION = "japaneast"
+az group create -n "rg-mcp-$env:USER_ID" -l $env:LOCATION
+az deployment group create `
+  -g "rg-mcp-$env:USER_ID" `
+  -n main `
+  -f infra/main.bicep `
+  -p infra/parameters.json `
+  -p userId=$env:USER_ID location=$env:LOCATION
 ```
 
 ### 4.5 後片付け
 ```bash
-az group delete -n rg-mcp-workshop --yes --no-wait
+az group delete -n "rg-mcp-$env:USER_ID" --yes --no-wait
 ```
 
 ---
@@ -119,11 +124,13 @@ az group delete -n rg-mcp-workshop --yes --no-wait
 ### Layer C — E2E
 | # | チェック | 期待 |
 |---|---|---|
-| C1 | デプロイ outputs に `apimGatewayUrl` 等が含まれる | `az deployment group show` で確認 |
-| C2 | APIM 経由で `https://<apim>.azure-api.net/knowledge-mcp/mcp` が `tools/list` を返す | MCP Inspector で 200 + tools 配列 |
-| C3 | APIM 経由で `https://<apim>.azure-api.net/incident-mcp/mcp` が `tools/list` を返す | 同上 |
-| C4 | APIM 経由で `https://<apim>.azure-api.net/oncall-mcp/mcp` が `tools/list` を返す | 同上 |
+| C1 | デプロイ outputs に `apimGatewayUrl` / `apimName` / `apiCenterName` 等が含まれる | `az deployment group show` で確認 |
+| C2 | APIM 経由で `https://<apim-output>/knowledge-mcp/mcp` が `tools/list` を返す | MCP Inspector で 200 + tools 配列 |
+| C3 | APIM 経由で `https://<apim-output>/incident-mcp/mcp` が `tools/list` を返す | 同上 |
+| C4 | APIM 経由で `https://<apim-output>/oncall-mcp/mcp` が `tools/list` を返す | 同上 |
 | C5 | Log Analytics の `ApiManagementGatewayMCPLog` に直近10分のレコード | `queries/dashboard.kql` 流用 |
+
+**重要**: APIM 名・リソースグループ名は Bicep の `userId` パラメータと `uniqueString(resourceGroup().id, userId)` の組み合わせで決まるため、`apim-mcp-workshop` のような固定名を期待しないこと。`az deployment group show -g $RG -n main --query "properties.outputs.apimName.value" -o tsv` などで必ず outputs から取得する。
 
 **自動化:** `.github/workflows/layer-c.yml` 参照（Azure OIDC セットアップは `docs/layer-c-setup.md`）
 
@@ -136,7 +143,9 @@ az group delete -n rg-mcp-workshop --yes --no-wait
   → Layer A（ローカル）か、image 差し替え後の Layer C で確認すること。
 - `infra/parameters.json` の `apimPublisherEmail` は `<your-email@example.com>` のまま。
   デプロイ前に必ず実在メールへ書き換える。
+- `infra/parameters.json` の `userId` には `user01` というデフォルトが入っているが、**複数人で同一サブスクリプションを共有する場合は CLI 引数 `--parameters userId=<一意の値>` で上書きすること**。リソース名が userId を含むため、同一 userId だと名前が衝突する。
 - APIM Developer SKU は **15〜20分** のプロビジョニング時間がかかる。
+- API Center Free SKU は同一サブスクリプション・同一リージョンで 1 個まで。複数人ハンズオンではリージョンを分散させるか Standard SKU を使う（[`docs/instructor-setup.md`](./docs/instructor-setup.md) 参照）。
 
 ---
 

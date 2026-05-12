@@ -101,6 +101,118 @@ AIエージェントが安全に利用できるよう基盤を整備する任務
 - Application Administrator（Entra ID アプリ登録用）
 ```
 
+### 参加者環境変数の設定（複数人ハンズオン対応）
+
+このハンズオンは **同一サブスクリプション内で複数人（〜5 名）が並行実施できる**ように設計されています。
+そのために、すべての Lab で以下の環境変数を使用します。
+
+> **📌 単独実施の場合も同じ手順で OK** — `USER_ID="user01"` を使い、Entra ID アプリは Lab 3 Step 1 で自分で作成してください。
+>
+> **📌 複数人ハンズオンの場合** — 講師が事前に [`docs/instructor-setup.md`](./instructor-setup.md) の手順で Entra ID 共有アプリを作成し、各参加者へ以下 5 値を配布します。
+
+#### ① 必ず最初に設定（PowerShell）
+
+新しいターミナルを開くたびに、ここで設定します（環境変数なので閉じると消えます）。
+
+> **📌 自分の USER_ID に対応するブロックだけをコピー&貼り付け**して実行してください。`USER_ID` と `LOCATION` がペアで決まっています（API Center Free SKU は同一サブスクリプション/リージョンに 1 個までの制約があるため、参加者ごとにリージョンを分散）。
+>
+> **⚠️ API Center は `japaneast` / `japanwest` 未対応**（2026年5月時点）。利用可能リージョン: `eastus` / `westeurope` / `uksouth` / `centralindia` / `australiaeast` / `francecentral` / `swedencentral` / `canadacentral`
+
+**▼ user01 用**
+
+```powershell
+$env:USER_ID  = "user01"
+$env:LOCATION = "westeurope"
+```
+
+**▼ user02 用**
+
+```powershell
+$env:USER_ID  = "user02"
+$env:LOCATION = "australiaeast"
+```
+
+**▼ user03 用**
+
+> **⚠️ グローバル名前衝突により user03 は今後のハンズオンでは使用しない**。`apic-mcp-user03-*` の名前が過去デプロイの残骸として Microsoft 側グローバル名前空間に予約されたままになり、API Center の作成がブロックされているため。代わりに **user06** を使用する。
+
+```powershell
+# user03 は使わない。user06 ブロックを参照してください。
+```
+
+**▼ user06 用**（user03 の代替）
+
+```powershell
+$env:USER_ID  = "user06"
+$env:LOCATION = "centralindia"
+```
+
+**▼ user04 用**
+
+```powershell
+$env:USER_ID  = "user04"
+$env:LOCATION = "uksouth"
+```
+
+**▼ user05 用**
+
+```powershell
+$env:USER_ID  = "user05"
+$env:LOCATION = "swedencentral"
+```
+
+**▼ 全員共通（USER_ID / LOCATION を設定した後、続けて実行）**
+
+```powershell
+# === サブスクリプション ID（講師から配布 / 単独実施なら自分のサブスクリプション ID）===
+$env:SUBSCRIPTION_ID = "<SUBSCRIPTION_ID>"
+
+# === Entra ID 関連（講師から配布。単独実施なら Lab 3 Step 1 完了後に再設定）===
+$env:TENANT_ID     = "<TENANT_ID>"        # Entra ID テナント ID
+$env:CLIENT_APP_ID = "<CLIENT_APP_ID>"    # MCP Workshop Client の App ID
+$env:SERVER_APP_ID = "<SERVER_APP_ID>"    # MCP Workshop Server の App ID
+
+# === 共有バックエンド URL（講師から配布）===
+# Lab 1 / Lab 2 で参照するバックエンドの FQDN。複数人ハンズオン時は
+# Container App Environment の上限（サブスクあたり 1 個）を回避するため、
+# 講師が事前に 1 セットだけデプロイして全員で共有する。
+$env:KNOWLEDGE_API_URL = "<KNOWLEDGE_API_FQDN>"    # 例: ca-knowledge-api-instructor.xxxxx.eastus.azurecontainerapps.io
+$env:INCIDENT_MCP_URL  = "<INCIDENT_MCP_FQDN>"     # 例: ca-incident-mcp-instructor.xxxxx.eastus.azurecontainerapps.io
+$env:ONCALL_API_URL    = "<ONCALL_API_FQDN>"       # 例: ca-oncall-api-instructor.xxxxx.eastus.azurecontainerapps.io
+
+# === 派生変数（編集不要）===
+$RG = "rg-mcp-$env:USER_ID"
+Write-Host "USER_ID:        $env:USER_ID"
+Write-Host "LOCATION:       $env:LOCATION"
+Write-Host "Resource Group: $RG"
+```
+
+#### ② Bicep デプロイ完了後に追加で取得する変数
+
+[**Lab 0 Step 4**](#step-4-リソースグループの作成と-bicep-デプロイ) のデプロイ完了後、以下のスクリプトを実行して残りの変数を outputs から取得します。
+**Lab 0 以降のすべてのコマンドはこれらの変数を前提**にしています。
+
+```powershell
+# Bicep outputs から派生変数を取得
+function Get-McpOutput($name) {
+  az deployment group show -g $RG -n main --query "properties.outputs.$name.value" -o tsv
+}
+
+$APIM_NAME      = Get-McpOutput "apimName"
+$APIC_NAME      = Get-McpOutput "apiCenterName"
+$LAW_NAME       = Get-McpOutput "logAnalyticsName"
+$AI_NAME        = Get-McpOutput "appInsightsName"
+$APIM_GW        = (Get-McpOutput "apimGatewayUrl").TrimEnd('/')
+
+Write-Host "APIM_NAME: $APIM_NAME"
+Write-Host "APIC_NAME: $APIC_NAME"
+Write-Host "APIM_GW:   $APIM_GW"
+```
+
+> **💡 ターミナルを開き直したら**: ①の `$env:*` と派生変数（`$RG` / `$APIM_NAME` 他）は再設定が必要です。上の 2 ブロックをまとめて再実行してください。
+
+> **⚠️ 重要**: この後 hands-on.md 内では旧バージョンにあった固定名（`rg-mcp-workshop` など）は使わず、すべて `$RG` / `$APIM_NAME` / `$APIC_NAME` などの変数で記述しています。**コピペ実行する前に必ず①と②を実行してください**。
+
 ---
 
 ## 全体アーキテクチャ
@@ -202,12 +314,16 @@ cd MCP-Gateway-handson
 
 ```powershell
 az login
-az account set --subscription "<your-subscription-id>"
+az account set --subscription "$env:SUBSCRIPTION_ID"
 ```
+
+> **🔁 ここで先に「前提条件 → 参加者環境変数の設定 ①」を実行**しておいてください。`$env:USER_ID` / `$env:LOCATION` / `$env:SUBSCRIPTION_ID` / `$RG` が必要です。
 
 #### Step 3: リソースプロバイダーの登録
 
-新規サブスクリプションでは、以下のリソースプロバイダーを事前に登録してください。
+リソースプロバイダーは、そのサブスクリプションで利用できる Azure サービスの定義です。
+
+新規サブスクリプションでは、以下のリソースプロバイダーを事前に登録してください（**サブスクリプション全体に 1 回でよい**ため、複数人ハンズオンでは講師が事前実施しておくのが推奨）。
 
 ```powershell
 az provider register -n Microsoft.App --wait
@@ -220,104 +336,160 @@ az provider register -n Microsoft.OperationalInsights --wait
 
 > **⏱️ 注意**: 登録には数分かかります。`--wait` を付けることで完了まで待機します。
 
-#### Step 4: リソースグループの作成
+#### Step 4: リソースグループの作成と Bicep デプロイ
+
+> **🔐 Azure 権限の確認（参加者必須）**
+>
+> 参加者は **自分専用の RG に対して `Owner` ロール**が必要です。理由は Lab 5 Step 1 で `az role assignment create` を実行する必要があり、これは `Contributor` には含まれない `Microsoft.Authorization/roleAssignments/write` 権限を要求するためです。
+>
+> **複数人ハンズオン時は講師が事前に付与済み**です。以下で確認してください:
+>
+> ```powershell
+> # 自分のサインインユーザーで RG が見えるか確認
+> az group show --name $RG --output table
+> ```
+>
+> | 結果 | 対処 |
+> |---|---|
+> | RG が表示される | 権限 OK。Step 4 のコマンドへ進む |
+> | `ResourceGroupNotFound` | 講師に「`$RG` を作成して Owner ロールを付与してください」と依頼 |
+> | `AuthorizationFailed` | 権限不足。講師に「Owner ロールを付与してください」と依頼 |
+>
+> 講師向けの付与手順は [`docs/instructor-setup.md`](./instructor-setup.md) の「参加者へのロール付与」セクションを参照。
+>
+> **既に講師が RG を作成・ロール付与済みなら、下の `az group create` はスキップして `az deployment group create` から実行**してください（`az group create` は冪等なので再実行しても害はありません）。
+
+このハンズオンでは **APIM が主役**で、バックエンドの Container Apps（Knowledge / Incident / Oncall）は補助的な役割です。Container App Environment は **サブスクリプションあたり既定 1 個まで**の制限があるため、複数人ハンズオン時は **講師が 1 セットだけ事前デプロイし、参加者は APIM / API Center / 監視リソースのみ作成する**構成にします。
 
 ```powershell
-az group create `
-  --name rg-mcp-workshop `
-  --location japaneast
-```
+# 参加者専用 RG を作成（講師が事前作成済みなら冪等にスキップされる）
+az group create --name $RG --location $env:LOCATION
 
-#### Step 4: Bicep テンプレートでリソースをデプロイ
-
-```powershell
+# Bicep テンプレートでリソースをデプロイ
+# 参加者は infra/parameters.participant.json（deployBackend=false）を使う
+# parameters.json の userId は CLI 引数で上書きする
 az deployment group create `
-  --resource-group rg-mcp-workshop `
+  --resource-group $RG `
+  --name main `
   --template-file infra/main.bicep `
-  --parameters infra/parameters.json
+  --parameters infra/parameters.participant.json `
+  --parameters userId=$env:USER_ID location=$env:LOCATION
 ```
 
 > **⏱️ 注意**: APIM Developer SKU のプロビジョニングには約15～20分かかります。デプロイ開始後、次のセクションの座学に進んでください。
 
-#### Step 5: コンテナイメージのビルドと Container Apps へのデプロイ
+> **💡 複数人ハンズオンの場合**: 全員が同時に `az deployment group create` を実行しても、別々の RG・別々のリソース名で並行プロビジョニングされます（バックエンドは作らないので CAE 上限の制約は受けません）。
 
-Bicep デプロイで作成された Azure Container Registry (ACR) にイメージをビルドし、Container Apps を更新します。
+> **📦 単独実施の場合**: バックエンドも自分で作りたいなら `infra/parameters.participant.json` の代わりに `infra/parameters.json` を指定し、続けて Step 5 のコンテナビルドを実施してください。本ガイドでは複数人ハンズオン想定で **参加者は backend を作らず、講師が事前デプロイした共有 backend を利用する**方針です。
+
+デプロイが完了したら、必ず「[**前提条件 → 参加者環境変数の設定 ②**](#-bicep-デプロイ完了後に追加で取得する変数)」を実行して派生変数（`$APIM_NAME` / `$APIC_NAME` 他）を取得してください。
+
+#### Step 5: 共有バックエンドの確認（参加者は実行不要）
+
+> **⚠️ このステップは講師が事前実施済み**です。参加者は実行不要で、`$env:KNOWLEDGE_API_URL` / `$env:INCIDENT_MCP_URL` / `$env:ONCALL_API_URL` が「参加者環境変数の設定 ①」で設定済みであることだけ確認してください。
 
 ```powershell
-# デプロイ outputs から ACR 名を取得
-$ACR_NAME = az deployment group show `
-  -g rg-mcp-workshop -n main `
-  --query "properties.outputs.acrName.value" -o tsv
-$ACR_SERVER = az deployment group show `
-  -g rg-mcp-workshop -n main `
-  --query "properties.outputs.acrLoginServer.value" -o tsv
+# 共有バックエンド URL が設定されているか確認
+Write-Host "KNOWLEDGE_API_URL: $env:KNOWLEDGE_API_URL"
+Write-Host "INCIDENT_MCP_URL:  $env:INCIDENT_MCP_URL"
+Write-Host "ONCALL_API_URL:    $env:ONCALL_API_URL"
 
-Write-Host "ACR: $ACR_SERVER"
+# 共有バックエンドが応答することを確認
+curl "https://$env:KNOWLEDGE_API_URL/health"
+curl "https://$env:INCIDENT_MCP_URL/health"
+curl "https://$env:ONCALL_API_URL/health"
+```
 
-# ACR 上でサーバーサイドビルド（ローカルに Docker 不要）
-az acr build --registry $ACR_NAME `
-  --image "knowledge-api:latest" src/knowledge-api/
+3 つとも `{"status":"ok"}` が返れば共有バックエンドは正常に動作しています。
 
-az acr build --registry $ACR_NAME `
-  --image "incident-mcp:latest" src/incident-mcp-server/
+<details>
+<summary>講師の方は以下の手順で共有バックエンドを事前デプロイ（クリックして展開）</summary>
 
-az acr build --registry $ACR_NAME `
-  --image "oncall-api:latest" src/oncall-api/
+参加者と同じ手順で **`infra/parameters.json`（deployBackend=true）** を使って自分の RG にフルセットをデプロイし、続けて `az acr build` でコンテナイメージをビルド・Container Apps を更新します。詳細は [docs/instructor-setup.md](./instructor-setup.md) の「共有バックエンドのデプロイ」セクションを参照。
 
-# ACR 認証情報を取得して Container Apps を更新
+```powershell
+# 講師は deployBackend=true（既定値）の parameters.json を使う
+$env:USER_ID = "instructor"
+$env:LOCATION = "eastus"
+$RG = "rg-mcp-$env:USER_ID"
+
+az group create --name $RG --location $env:LOCATION
+az deployment group create `
+  --resource-group $RG `
+  --name main `
+  --template-file infra/main.bicep `
+  --parameters infra/parameters.json `
+  --parameters userId=$env:USER_ID location=$env:LOCATION
+
+# 続いて ACR ビルド + Container Apps 更新（参加者向けの Step 5 旧版と同じ）
+function Get-McpOutput($name) {
+  az deployment group show -g $RG -n main --query "properties.outputs.$name.value" -o tsv
+}
+$ACR_NAME       = Get-McpOutput "acrName"
+$ACR_SERVER     = Get-McpOutput "acrLoginServer"
+$CA_KNOWLEDGE   = Get-McpOutput "knowledgeApiContainerAppName"
+$CA_INCIDENT    = Get-McpOutput "incidentMcpContainerAppName"
+$CA_ONCALL      = Get-McpOutput "oncallApiContainerAppName"
+
+az acr build --registry $ACR_NAME --image "knowledge-api:latest" src/knowledge-api/
+az acr build --registry $ACR_NAME --image "incident-mcp:latest" src/incident-mcp-server/
+az acr build --registry $ACR_NAME --image "oncall-api:latest" src/oncall-api/
+
+# ⚠️ az acr build がサブスクリプション制限で失敗する場合（TasksOperationsNotAllowed）は、
+# Docker Desktop でローカルビルドして push してください:
+#   az acr login --name $ACR_NAME
+#   docker build -t "$ACR_SERVER/knowledge-api:latest" .\src\knowledge-api\ ; docker push "$ACR_SERVER/knowledge-api:latest"
+#   docker build -t "$ACR_SERVER/incident-mcp:latest"  .\src\incident-mcp-server\ ; docker push "$ACR_SERVER/incident-mcp:latest"
+#   docker build -t "$ACR_SERVER/oncall-api:latest"    .\src\oncall-api\         ; docker push "$ACR_SERVER/oncall-api:latest"
+
 $ACR_USERNAME = az acr credential show --name $ACR_NAME --query "username" -o tsv
 $ACR_PASSWORD = az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv
 
-az containerapp update `
-  --name ca-knowledge-api --resource-group rg-mcp-workshop `
-  --image "$ACR_SERVER/knowledge-api:latest" `
-  --registry-server $ACR_SERVER `
-  --registry-username $ACR_USERNAME `
-  --registry-password $ACR_PASSWORD
+# 1. 各 Container App に ACR 認証情報を登録（registry set）
+az containerapp registry set --name $CA_KNOWLEDGE -g $RG `
+  --server $ACR_SERVER --username $ACR_USERNAME --password $ACR_PASSWORD
+az containerapp registry set --name $CA_INCIDENT -g $RG `
+  --server $ACR_SERVER --username $ACR_USERNAME --password $ACR_PASSWORD
+az containerapp registry set --name $CA_ONCALL -g $RG `
+  --server $ACR_SERVER --username $ACR_USERNAME --password $ACR_PASSWORD
 
-az containerapp update `
-  --name ca-incident-mcp --resource-group rg-mcp-workshop `
-  --image "$ACR_SERVER/incident-mcp:latest" `
-  --registry-server $ACR_SERVER `
-  --registry-username $ACR_USERNAME `
-  --registry-password $ACR_PASSWORD
+# 2. イメージを更新
+az containerapp update --name $CA_KNOWLEDGE -g $RG `
+  --image "$ACR_SERVER/knowledge-api:latest"
+az containerapp update --name $CA_INCIDENT -g $RG `
+  --image "$ACR_SERVER/incident-mcp:latest"
+az containerapp update --name $CA_ONCALL -g $RG `
+  --image "$ACR_SERVER/oncall-api:latest"
 
-az containerapp update `
-  --name ca-oncall-api --resource-group rg-mcp-workshop `
-  --image "$ACR_SERVER/oncall-api:latest" `
-  --registry-server $ACR_SERVER `
-  --registry-username $ACR_USERNAME `
-  --registry-password $ACR_PASSWORD
+# 完了後、3 つの FQDN を参加者へ配布
+Get-McpOutput "knowledgeApiUrl"
+Get-McpOutput "incidentMcpUrl"
+Get-McpOutput "oncallApiUrl"
 ```
 
-> **💡 ポイント**: `az acr build` はクラウド側でビルドするため、ローカルに Docker Desktop が不要です。
+</details>
 
 #### Step 6: デプロイ結果の確認
 
 ```powershell
 # APIM エンドポイントの確認
-az apim show --name apim-mcp-workshop --resource-group rg-mcp-workshop `
+az apim show --name $APIM_NAME --resource-group $RG `
   --query "gatewayUrl" -o tsv
 
-# ACR の確認
-az acr show --name $ACR_NAME --resource-group rg-mcp-workshop `
-  --query "loginServer" -o tsv
-
 # API Center の確認
-az apic show --name apic-mcp-workshop --resource-group rg-mcp-workshop `
+az apic show --name $APIC_NAME --resource-group $RG `
   --query "id" -o tsv
 
 # Application Insights の確認
 az monitor app-insights component show `
-  --app appinsights-mcp-workshop --resource-group rg-mcp-workshop `
+  --app $AI_NAME --resource-group $RG `
   --query "instrumentationKey" -o tsv
 ```
 
 ### ✅ 確認ポイント
 
 - [ ] APIM ゲートウェイ URL にアクセスして応答を確認
-- [ ] ACR にイメージ（knowledge-api, incident-mcp, oncall-api）が存在する
-- [ ] Container Apps 3つが実イメージで稼働している（`/health` が `{"status":"ok"}` を返す）
+- [ ] 共有バックエンド 3 つが応答する（`$env:KNOWLEDGE_API_URL` / `$env:INCIDENT_MCP_URL` / `$env:ONCALL_API_URL` の `/health` が `{"status":"ok"}`）
 - [ ] Azure Portal で API Center リソースが表示される
 - [ ] Application Insights のインストルメンテーションキーを取得
 
@@ -325,9 +497,10 @@ az monitor app-insights component show `
 
 | 成果物 | 内容 |
 |---|---|
-| デプロイ済み環境 | APIM / API Center / Container Apps / ACR / App Insights |
-| パラメータファイル | `infra/parameters.json` |
-| 接続情報メモ | APIM URL / ACR Login Server / API Center ID / App Insights Key |
+| デプロイ済み環境 | APIM / API Center / Log Analytics / App Insights / Key Vault（参加者ごと） |
+| 共有バックエンド | Container Apps（Knowledge / Incident / Oncall）+ ACR（講師 1 セット） |
+| パラメータファイル | `infra/parameters.participant.json`（参加者用）/ `infra/parameters.json`（講師用） |
+| 接続情報メモ | APIM URL / API Center ID / App Insights Key / 共有 backend URL × 3 |
 
 ---
 
@@ -355,14 +528,12 @@ GET  /categories            →    listCategories
 
 #### Step 1: Knowledge Search API のデプロイ確認（5分）
 
-Lab 0 で Knowledge Search API が Container Apps にデプロイされていることを確認します。
+Lab 0 で講師が事前にデプロイした **共有バックエンド** の Knowledge Search API が稼働していることを確認します。
 
 ```powershell
-# Knowledge Search API の URL を取得
-$KNOWLEDGE_API_URL = az containerapp show `
-  --name ca-knowledge-api `
-  --resource-group rg-mcp-workshop `
-  --query "properties.configuration.ingress.fqdn" -o tsv
+# 共有バックエンドの URL は「参加者環境変数の設定 ①」で設定済み
+$KNOWLEDGE_API_URL = $env:KNOWLEDGE_API_URL
+Write-Host "Knowledge API URL: https://$KNOWLEDGE_API_URL"
 
 # 動作確認
 curl https://$KNOWLEDGE_API_URL/api/categories
@@ -382,8 +553,8 @@ curl https://$KNOWLEDGE_API_URL/api/categories
 ```powershell
 # OpenAPI 定義をインポート
 az apim api import `
-  --resource-group rg-mcp-workshop `
-  --service-name apim-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIM_NAME `
   --api-id knowledge-search `
   --path knowledge-search `
   --specification-format OpenApiJson `
@@ -436,7 +607,7 @@ $sub = az account show --query id -o tsv
 $t = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
 $h = @{ Authorization="Bearer $t"; "Content-Type"="application/json" }
 $body = '{"properties":{"mcpProperties":{"endpoints":{"mcp":{"uriTemplate":"/mcp"}}}}}'
-Invoke-RestMethod "https://management.azure.com/subscriptions/$sub/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp?api-version=2025-03-01-preview" -Method PATCH -Headers $h -Body $body | Out-Null
+Invoke-RestMethod "https://management.azure.com/subscriptions/$sub/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/knowledge-search-mcp?api-version=2025-03-01-preview" -Method PATCH -Headers $h -Body $body | Out-Null
 Write-Host "knowledge-search-mcp : mcpProperties 設定完了"
 ```
 
@@ -449,11 +620,9 @@ Write-Host "knowledge-search-mcp : mcpProperties 設定完了"
 同様の手順で On-call Schedule API も MCP Server として公開します。
 
 ```powershell
-# On-call Schedule API の URL を取得
-$ONCALL_API_URL = az containerapp show `
-  --name ca-oncall-api `
-  --resource-group rg-mcp-workshop `
-  --query "properties.configuration.ingress.fqdn" -o tsv
+# 共有バックエンドの URL は「参加者環境変数の設定 ①」で設定済み
+$ONCALL_API_URL = $env:ONCALL_API_URL
+Write-Host "Oncall API URL: https://$ONCALL_API_URL"
 
 # 動作確認
 curl https://$ONCALL_API_URL/api/oncall/2026-04-30
@@ -469,8 +638,8 @@ curl https://$ONCALL_API_URL/api/oncall/2026-04-30
 ```powershell
 # OpenAPI 定義をインポート
 az apim api import `
-  --resource-group rg-mcp-workshop `
-  --service-name apim-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIM_NAME `
   --api-id oncall-schedule `
   --path oncall `
   --specification-format OpenApiJson `
@@ -522,7 +691,7 @@ $sub = az account show --query id -o tsv
 $t = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
 $h = @{ Authorization="Bearer $t"; "Content-Type"="application/json" }
 $body = '{"properties":{"mcpProperties":{"endpoints":{"mcp":{"uriTemplate":"/mcp"}}}}}'
-Invoke-RestMethod "https://management.azure.com/subscriptions/$sub/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/oncall-schedule-mcp?api-version=2025-03-01-preview" -Method PATCH -Headers $h -Body $body | Out-Null
+Invoke-RestMethod "https://management.azure.com/subscriptions/$sub/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/oncall-schedule-mcp?api-version=2025-03-01-preview" -Method PATCH -Headers $h -Body $body | Out-Null
 Write-Host "oncall-schedule-mcp : mcpProperties 設定完了"
 ```
 
@@ -546,10 +715,12 @@ npx @modelcontextprotocol/inspector
 MCP Inspector の接続設定:
 ```
 Transport: Streamable HTTP
-URL: https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp
+URL: $APIM_GW/knowledge-search-mcp/mcp
 ```
 
 > **💡 ポイント**: Lab 1 では認証なしで接続します（APIM の MCP Server 作成直後はサブスクリプション不要がデフォルト）。Lab 3 で Entra ID 認証ポリシーを設定した後は `Authorization: Bearer <token>` ヘッダーが必要になります。
+
+> **💡 URL の確認**: `$APIM_GW` の実値は前提条件②で取得済みです。`Write-Host $APIM_GW` で確認してください（例: `https://apim-mcp-user01-abcde.azure-api.net`）。
 
 確認手順（knowledge-search-mcp）:
 1. **Connect** → 接続成功を確認
@@ -558,7 +729,7 @@ URL: https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp
 4. レスポンスにナレッジ記事が返ることを確認
 
 確認手順（oncall-schedule-mcp）:
-1. URL を `https://apim-mcp-workshop.azure-api.net/oncall-schedule-mcp/mcp` に変更して **Connect**
+1. URL を `$APIM_GW/oncall-schedule-mcp/mcp` に変更して **Connect**
 2. **Tools** タブ → 2つのツール（getCurrentOncall, getScheduleByDate）が表示される
 3. `getCurrentOncall` を選択 → **Call Tool**
 4. レスポンスにオンコール担当者情報が返ることを確認
@@ -567,19 +738,19 @@ URL: https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp
 
 - [ ] Knowledge Search API が APIM にインポートされている（3 オペレーション）
 - [ ] Oncall Schedule API が APIM にインポートされている（2 オペレーション）
-- [ ] curl で `https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp` に `tools/list` が返る
+- [ ] curl で `$APIM_GW/knowledge-search-mcp/mcp` に `tools/list` が返る
 - [ ] `tools/list` で `searchArticles` / `getArticle` / `listCategories` の 3 ツールが返る
 - [ ] `searchArticles` でキーワード検索結果が返る
-- [ ] curl で `https://apim-mcp-workshop.azure-api.net/oncall-schedule-mcp/mcp` に `tools/list` が返る
+- [ ] curl で `$APIM_GW/oncall-schedule-mcp/mcp` に `tools/list` が返る
 - [ ] `tools/list` で `getCurrentOncall` / `getScheduleByDate` の 2 ツールが返る
 
 ### 📦 成果物
 
 | 成果物 | 内容 |
 |---|---|
-| Knowledge Search MCP endpoint | `https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp` |
+| Knowledge Search MCP endpoint | `$APIM_GW/knowledge-search-mcp/mcp` |
 | Knowledge Search Tool 一覧 | `searchArticles` / `getArticle` / `listCategories` |
-| Oncall Schedule MCP endpoint | `https://apim-mcp-workshop.azure-api.net/oncall-schedule-mcp/mcp` |
+| Oncall Schedule MCP endpoint | `$APIM_GW/oncall-schedule-mcp/mcp` |
 | Oncall Schedule Tool 一覧 | `getCurrentOncall` / `getScheduleByDate` |
 | 実行確認 | curl による tools/list レスポンス |
 
@@ -609,17 +780,14 @@ Lab 2: MCP Server ──[APIMプロキシ]──→ MCP Server（tools + resourc
 #### Step 1: Incident MCP Server のデプロイ確認（10分）
 
 ```powershell
-# Incident MCP Server の URL を取得して表示
-$INCIDENT_MCP_URL = az containerapp show `
-  --name ca-incident-mcp `
-  --resource-group rg-mcp-workshop `
-  --query "properties.configuration.ingress.fqdn" -o tsv
+# 共有バックエンドの URL は「参加者環境変数の設定 ①」で設定済み
+$INCIDENT_MCP_URL = $env:INCIDENT_MCP_URL
 Write-Host "Incident MCP URL: https://$INCIDENT_MCP_URL/mcp"
 ```
 
 出力例:
 ```
-Incident MCP URL: https://ca-incident-mcp.happypond-00713c37.eastus.azurecontainerapps.io/mcp
+Incident MCP URL: https://ca-incident-mcp-instructor.happypond-00713c37.eastus.azurecontainerapps.io/mcp
 ```
 
 上記の URL をコピーしてから MCP Inspector を起動します:
@@ -630,7 +798,7 @@ npx @modelcontextprotocol/inspector
 直接接続の設定（コピーした URL を貼り付け）:
 ```
 Transport: Streamable HTTP
-URL: https://ca-incident-mcp.<環境固有パス>.azurecontainerapps.io/mcp
+URL: https://ca-incident-mcp-<USER_ID>.<環境固有パス>.azurecontainerapps.io/mcp
 ```
 
 このサーバーが提供するツール:
@@ -653,7 +821,7 @@ Azure Portal での操作:
 
 3. **MCP サーバーのベース URL** に入力（Step 1 で表示された URL）:
    ```
-   https://ca-incident-mcp.<環境固有パス>.azurecontainerapps.io/mcp
+   https://ca-incident-mcp-<USER_ID>.<環境固有パス>.azurecontainerapps.io/mcp
    ```
 
 **新しい MCP サーバー** セクション:
@@ -681,7 +849,7 @@ Azure Portal での操作:
 
 ```powershell
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-$MCP_URL = "https://apim-mcp-workshop.azure-api.net/incident-mcp/mcp"
+$MCP_URL = "$APIM_GW/incident-mcp/mcp"
 
 # tools/list → 3 つのツールが返ることを確認
 curl.exe -s -X POST $MCP_URL `
@@ -718,7 +886,7 @@ curl.exe -s -X POST $MCP_URL `
 
 | 成果物 | 内容 |
 |---|---|
-| APIM 経由 MCP URL | `https://apim-mcp-workshop.azure-api.net/incident-mcp/mcp` |
+| APIM 経由 MCP URL | `$APIM_GW/incident-mcp/mcp` |
 | 直接/APIM経由 比較表 | 認証・制限・ログの差分整理 |
 
 ---
@@ -765,32 +933,39 @@ MCP Server へのアクセスに対して Entra ID ベースの認証・認可�
 
 ### 🔨 ハンズオン（50分）
 
-#### Step 1: Entra ID アプリ登録（15分）
+#### Step 1: Entra ID アプリの準備（5〜15分）
 
-> **⏭️ スキップ条件（再実施・2回目以降の方）**: このステップは**一度きりの設定**です。同一テナントで既に実施済みの場合は以下で確認してスキップできます:
->
-> ```powershell
-> az ad app list --display-name "MCP Workshop Client" --query "[0].appId" -o tsv
-> az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-> ```
->
-> 両方の App ID が表示された場合は **Step 2（Named Values 設定）から再開**してください。
+このハンズオンでは、APIM の `validate-azure-ad-token` ポリシーが検証する Entra ID アプリが 2 つ必要です。
 
-> **🔐 権限の整理**: このステップで必要な Entra ID 権限は以下の通りです。
->
-> | 操作 | 必要な権限 |
-> |---|---|
-> | アプリの登録・表示・編集 | アプリのオーナー（作成者）であれば特別なロール不要 |
-> | Application ID URI の設定 | アプリのオーナー |
-> | oauth2PermissionScopes の追加 | アプリのオーナー |
-> | 承認済みクライアントの追加 | アプリのオーナー |
-> | **管理者の同意の付与** | **アプリケーション管理者（Application Administrator）以上** |
->
-> 本ワークショップでは自分で作成したアプリを操作するため、アプリ登録・編集はオーナーとして行えます。管理者の同意付与のみ Application Administrator 以上が必要です（前提条件に記載）。
+| アプリ | 役割 |
+|---|---|
+| `MCP Workshop Client` | MCP Inspector / Azure CLI などツールを呼び出す側 |
+| `MCP Workshop Server` | APIM が検証する audience（`api://<SERVER_APP_ID>`） |
+
+##### 複数人ハンズオンの場合（推奨フロー）
+
+**講師が事前に作成済み** — 「前提条件 → 参加者環境変数の設定 ①」で配布された以下の 3 値を環境変数に設定済みであることを確認します:
+
+```powershell
+Write-Host "TENANT_ID:     $env:TENANT_ID"
+Write-Host "CLIENT_APP_ID: $env:CLIENT_APP_ID"
+Write-Host "SERVER_APP_ID: $env:SERVER_APP_ID"
+```
+
+3 値とも空でない（`<TENANT_ID>` などのプレースホルダになっていない）ことを確認してください。**確認できたら Step 2 へ進んでください**。
+
+> **💡 ポイント**: 講師はテナントに 1 セットだけアプリを作成し、全参加者で共有します。アプリの作成・スコープ追加・管理者の同意・Azure CLI の承認済みクライアント追加はすべて講師が事前実施済みです。詳細は [`docs/instructor-setup.md`](./instructor-setup.md) を参照。
+
+##### 単独実施の場合（自分で作成する）
+
+<details>
+<summary>テナント管理者権限がある場合、ここをクリックして Entra ID アプリを自分で作成する手順を展開</summary>
+
+> **🔐 必要な権限**: アプリの作成・編集は作成者本人で可能ですが、**管理者の同意付与には Application Administrator 以上**が必要です。
 
 **MCP Client 用アプリ登録:**
 
-> **� 役割**: MCP Inspector や Azure CLI (`az account get-access-token`) など「**ツールを呼び出す側**」を表す Entra ID アプリ。
+> **📌 役割**: MCP Inspector や Azure CLI (`az account get-access-token`) など「**ツールを呼び出す側**」を表す Entra ID アプリ。
 > OAuth 2.0 フローで「ユーザーの代わりに MCP Server へのアクセストークンを取得」する。
 > APIM は「この Client から発行されたトークン」であることを検証する。
 
@@ -800,16 +975,15 @@ MCP Server へのアクセスに対して Entra ID ベースの認証・認可�
    | 項目 | 値 |
    |---|---|
    | 名前 | `MCP Workshop Client` |
-   | サポートされているアカウントの種類 | **シングル テナントのみ**（`この組織ディレクトリのみ`と同義） |
+   | サポートされているアカウントの種類 | **シングル テナントのみ** |
    | リダイレクト URI | Web / `http://localhost:3000/callback` |
 
-3. 登録後、「**概要**」→「**アプリケーション (クライアント) ID**」を記録しておく（後で `$CLIENT_APP_ID` として使用）
+3. 登録後、「**概要**」→「**アプリケーション (クライアント) ID**」を記録
 
 **MCP Server 用アプリ登録:**
 
 > **📌 役割**: APIM の `validate-azure-ad-token` ポリシーが検証する「**トークンの宛先**」を表す Entra ID アプリ。
 > `api://<SERVER_APP_ID>` が JWT の `aud`（audience）クレームと一致するか検証される。
-> ユーザーは自らログインすることはなく、Client アプリがトークンを代理取得する。
 
 1. 「**+ 新規登録**」
 2. 以下を入力して「**登録**」:
@@ -817,80 +991,69 @@ MCP Server へのアクセスに対して Entra ID ベースの認証・認可�
    | 項目 | 値 |
    |---|---|
    | 名前 | `MCP Workshop Server` |
-   | サポートされているアカウントの種類 | **シングル テナントのみ**（`この組織ディレクトリのみ`と同義） |
+   | サポートされているアカウントの種類 | **シングル テナントのみ** |
    | リダイレクト URI | （空のまま） |
 
-3. 登録後、「**概要**」→「**アプリケーション (クライアント) ID**」を記録しておく（後で `$SERVER_APP_ID` として使用）
+3. 登録後、「**概要**」→「**アプリケーション (クライアント) ID**」を記録
 
 **① Application ID URI の設定**
-1. `MCP Workshop Server` の左メニュー「**API の公開**」→ 画面上部「**追加**」（Application ID URI）
+1. `MCP Workshop Server` → 「**API の公開**」→ 「**追加**」（Application ID URI）
 2. 既定値 `api://<appId>` のまま「**保存**」
 
 **② スコープ（access_as_user）の追加**
-1. 同じ「**API の公開**」画面 → 「**+ Scope の追加**」
-2. 以下を入力して「**スコープの追加**」を押す
+1. 「**API の公開**」→「**+ Scope の追加**」
+2. 以下を入力して「**スコープの追加**」:
 
    | 項目 | 値 |
    |---|---|
    | スコープ名 | `access_as_user` |
    | 同意できるユーザー | **管理者とユーザー** |
-   | 管理者の同意の表示名 | `access_as_user` |
-   | 管理者の同意の説明 | `Access MCP Server as user` |
-   | ユーザーの同意の表示名 | `access_as_user` |
-   | ユーザーの同意の説明 | `Access MCP Server` |
+   | 管理者の同意の表示名/説明 | `access_as_user` / `Access MCP Server as user` |
+   | ユーザーの同意の表示名/説明 | `access_as_user` / `Access MCP Server` |
    | 状態 | **有効** |
 
 **③ Client アプリに Server スコープの利用許可を追加し、管理者の同意を付与**
+1. **アプリの登録** → `MCP Workshop Client` → 「**API のアクセス許可**」→「**+ アクセス許可の追加**」
+2. 「**所属する組織で使用している API**」タブ → `MCP Workshop Server` を検索 → クリック
+3. 「**委任されたアクセス許可**」→ `access_as_user` にチェック → 「**アクセス許可の追加**」
+4. 「**<テナント名> に管理者の同意を与えます**」→ 「**はい**」
 
-Server アプリ自身は何も API を呼ばないため、Server の「API のアクセス許可」は**空で正常**です。
-同意はアクセス許可を**使う側（Client アプリ）** から行います。
-
-1. **Microsoft Entra ID** → **アプリの登録** → `MCP Workshop Client` を開く
-2. 左メニュー「**API のアクセス許可**」→「**+ アクセス許可の追加**」
-3. 右側パネルで「**所属する組織で使用している API**」タブをクリック
-4. 検索ボックスに `MCP Workshop Server` と入力 → 候補に表示されたらクリック
-5. 「**委任されたアクセス許可**」→ `access_as_user` にチェック → 「**アクセス許可の追加**」
-6. 「**Contoso に管理者の同意を与えます**」ボタンをクリック → 「**はい**」
-
-> **⚠️ 権限要件**: 管理者の同意付与には Entra ID で **アプリケーション管理者**（Application Administrator）以上のロールが必要です。ボタンがグレーアウトしている場合はロールが不足しています。テナント管理者に依頼するか、前提条件の権限を確認してください。
-
-> **⚠️ 注意**: 手順 3 のタブ名は「自分の組織で使用している API」ではなく「**所属する組織で使用している API**」です（Portal の表記に注意）。
-
-**④ Azure CLI を承認済みクライアントに追加（`az account get-access-token` でのテスト用）**
-1. `MCP Workshop Server` → 「**API の公開**」
-2. 「**承認済みのクライアント アプリケーション**」→「**+ クライアント アプリケーションの追加**」
-3. 右パネルの「クライアント ID」欄（プレースホルダーに例の GUID が薄く表示されているが入力欄は空）に以下を入力:
+**④ Azure CLI を承認済みクライアントに追加**
+1. `MCP Workshop Server` → 「**API の公開**」→ 「**承認済みのクライアント アプリケーション**」→「**+ クライアント アプリケーションの追加**」
+2. クライアント ID 欄に Microsoft Azure CLI の固定 GUID を入力:
    ```
    04b07795-8ddb-461a-bbee-02f9e1bf7b46
    ```
-   > **💡 この GUID は Microsoft Azure CLI の固定 App ID**（すべてのテナント共通）。自分のアプリの ID ではありません。
-4. 「承認済みのスコープ」の `api://.../access_as_user` にチェックが入っていることを確認 → 「**アプリケーションの追加**」
+3. `access_as_user` にチェックが入っていることを確認 → 「**アプリケーションの追加**」
 
-設定後、Client / Server の App ID を変数に記録します:
+**⑤ 環境変数にセット**
+
+作成完了後、以下を実行して環境変数を上書きします:
 
 ```powershell
-$CLIENT_APP_ID = az ad app list --display-name "MCP Workshop Client" `
-  --query "[0].appId" -o tsv
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" `
-  --query "[0].appId" -o tsv
-Write-Host "Client App ID: $CLIENT_APP_ID"
-Write-Host "Server App ID: $SERVER_APP_ID"
+$env:TENANT_ID     = az account show --query tenantId -o tsv
+$env:CLIENT_APP_ID = az ad app list --display-name "MCP Workshop Client" --query "[0].appId" -o tsv
+$env:SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
+Write-Host "TENANT_ID:     $env:TENANT_ID"
+Write-Host "CLIENT_APP_ID: $env:CLIENT_APP_ID"
+Write-Host "SERVER_APP_ID: $env:SERVER_APP_ID"
 ```
+
+</details>
 
 #### Step 2: APIM の Named Values を設定（3分）
 
-Step 2 の `validate-azure-ad-token` ポリシーが参照する `{{EntraTenantId}}` / `{{McpServerAppId}}` を APIM に登録します。値をポリシーに直書きせず Named Values に分離することで、環境変更時にポリシーを書き換えずに済みます。
+Step 3 の `validate-azure-ad-token` ポリシーが参照する `{{EntraTenantId}}` / `{{McpServerAppId}}` を APIM に登録します。値をポリシーに直書きせず Named Values に分離することで、環境変更時にポリシーを書き換えずに済みます。
 
 ```powershell
-$tenantId = az account show --query tenantId -o tsv
 $sub  = az account show --query id -o tsv
 $t    = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
 $h    = @{ Authorization="Bearer $t"; "Content-Type"="application/json" }
-$base = "https://management.azure.com/subscriptions/$sub/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop"
+$base = "https://management.azure.com/subscriptions/$sub/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME"
 
 foreach ($nv in @(
-  @{ name="EntraTenantId";    value=$tenantId },
-  @{ name="McpServerAppId";   value="api://$SERVER_APP_ID" }
+  @{ name="EntraTenantId";    value=$env:TENANT_ID },
+  @{ name="McpServerAppId";   value="api://$env:SERVER_APP_ID" }
 )) {
   $body = @{ properties = @{ displayName=$nv.name; value=$nv.value; secret=$false } } | ConvertTo-Json
   Invoke-RestMethod "$base/namedValues/$($nv.name)?api-version=2024-05-01" -Method PUT -Headers $h -Body $body
@@ -902,35 +1065,26 @@ foreach ($nv in @(
 
 Knowledge Search MCP Server にインバウンド認証ポリシーを追加します。
 
-Azure Portal → API Management → APIs → MCP Servers → `knowledge-search-mcp` → **ポリシー**
+Azure Portal → API Management（`$APIM_NAME`）→ APIs → MCP Servers → `knowledge-search-mcp` → **ポリシー**
 
-以下のスクリプトを**まとめて実行**するとポリシー XML がクリップボードにコピーされます:
-
-> **⚠️ CAE エラーが出た場合**: `az ad app list` 実行時に `TokenCreatedWithOutdatedPolicies` や `InteractionRequired` が返ることがあります。これは CAE（継続的アクセス評価）によりトークンキャッシュが無効化されたためです。以下で解消してから再実行してください:
->
-> ```powershell
-> az account clear
-> az login
-> ```
+以下のスクリプトを**まとめて実行**するとポリシー XML がクリップボードにコピーされます。`$env:TENANT_ID` / `$env:SERVER_APP_ID` が設定済みであることを前提とします（Step 1 で確認済み）。
 
 ```powershell
-$TENANT_ID     = az account show --query "tenantId" -o tsv
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-Write-Host "Tenant ID:     $TENANT_ID"
-Write-Host "Server App ID: $SERVER_APP_ID"
+Write-Host "Tenant ID:     $env:TENANT_ID"
+Write-Host "Server App ID: $env:SERVER_APP_ID"
 
 $policy = @"
 <policies>
     <inbound>
         <base />
         <validate-azure-ad-token
-            tenant-id="$TENANT_ID"
+            tenant-id="$env:TENANT_ID"
             header-name="Authorization"
             failed-validation-httpcode="401"
             failed-validation-error-message="Unauthorized: Invalid or missing token">
             <audiences>
                 <!-- audience は "api://<GUID>" 形式（GUID のみは不可） -->
-                <audience>api://$SERVER_APP_ID</audience>
+                <audience>api://$env:SERVER_APP_ID</audience>
             </audiences>
         </validate-azure-ad-token>
         <set-header name="X-User-Id" exists-action="override">
@@ -959,10 +1113,8 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 > **⚠️ MCP Inspector は APIM エンドポイントに接続できません。** Inspector 0.10.x 以降は接続時に RFC 7591 DCR を自動実行しますが、APIM は DCR をサポートしていないためエラーになります。curl を使用します。
 
 ```powershell
-# 変数が設定されていない場合は再取得
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
-$APIM_GW  = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query "gatewayUrl" -o tsv
+# 共有 Entra アプリでトークン取得（$env:SERVER_APP_ID は Step 1 で設定済み）
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 $MCP_URL  = "$APIM_GW/knowledge-search-mcp/mcp"
 
 # ① トークンなし → 401 を確認
@@ -988,23 +1140,20 @@ curl.exe -s --max-time 5 -X POST $MCP_URL `
 
 **Incident MCP にも同じポリシーを適用します。**
 
-Azure Portal → API Management → APIs → MCP Servers → `incident-mcp` → **ポリシー**
+Azure Portal → API Management（`$APIM_NAME`）→ APIs → MCP Servers → `incident-mcp` → **ポリシー**
 
 ```powershell
-$TENANT_ID     = az account show --query "tenantId" -o tsv
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-
 $policy = @"
 <policies>
     <inbound>
         <base />
         <validate-azure-ad-token
-            tenant-id="$TENANT_ID"
+            tenant-id="$env:TENANT_ID"
             header-name="Authorization"
             failed-validation-httpcode="401"
             failed-validation-error-message="Unauthorized: Invalid or missing token">
             <audiences>
-                <audience>api://$SERVER_APP_ID</audience>
+                <audience>api://$env:SERVER_APP_ID</audience>
             </audiences>
         </validate-azure-ad-token>
         <set-header name="X-User-Id" exists-action="override">
@@ -1031,10 +1180,7 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 **curl で動作確認:**
 
 ```powershell
-# 変数が設定されていない場合は再取得
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
-$APIM_GW  = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query "gatewayUrl" -o tsv
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 $INCIDENT_MCP_URL = "$APIM_GW/incident-mcp/mcp"
 $body     = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 
@@ -1075,14 +1221,11 @@ On-call Schedule MCP Server は**全員が同じ当番表を参照**するため
 | 典型的な呼び出し元 | VS Code / Copilot / AI Agent（ユーザーのトークンで代理実行） | GitHub Actions / 定期バッチ / MI で動く Azure サービス（無人実行） |
 | oncall-api バックエンド | 認証なし（HTTP のみ） | 認証なし（HTTP のみ、変更不要） |
 
-Azure Portal → API Management → APIs → MCP Servers → `oncall-schedule-mcp` → **ポリシー**
+Azure Portal → API Management（`$APIM_NAME`）→ APIs → MCP Servers → `oncall-schedule-mcp` → **ポリシー**
 
 以下のスクリプトでポリシー XML を生成し、クリップボードにコピーします:
 
 ```powershell
-$TENANT_ID     = az account show --query "tenantId" -o tsv
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-
 $policy = @"
 <policies>
     <inbound>
@@ -1090,12 +1233,12 @@ $policy = @"
         <!-- パターンB: アプリトークン（MI / サービスプリンシパル）で認証 -->
         <!-- ユーザー個人の委任トークンも技術的には通るが、想定呼び出し元はサービス -->
         <validate-azure-ad-token
-            tenant-id="$TENANT_ID"
+            tenant-id="$env:TENANT_ID"
             header-name="Authorization"
             failed-validation-httpcode="401"
             failed-validation-error-message="Unauthorized: Invalid or missing token">
             <audiences>
-                <audience>api://$SERVER_APP_ID</audience>
+                <audience>api://$env:SERVER_APP_ID</audience>
             </audiences>
         </validate-azure-ad-token>
     </inbound>
@@ -1123,10 +1266,7 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 **curl で動作確認:**
 
 ```powershell
-# 変数が設定されていない場合は再取得
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
-$APIM_GW  = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query "gatewayUrl" -o tsv
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 $ONCALL_MCP_URL = "$APIM_GW/oncall-schedule-mcp/mcp"
 $body     = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 
@@ -1301,9 +1441,8 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 > **💡 レート制限のカウンターは時刻の :00 秒を起点とした固定ウィンドウでリセットされます。** :58 秒頃に実行を開始すると :00 秒のリセットが先に来るため、6回に達する前にカウントがリセットされます。次の :00 秒以降に実行を開始してください。
 
 ```powershell
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
-$MCP_URL  = "https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp"
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
+$MCP_URL  = "$APIM_GW/knowledge-search-mcp/mcp"
 $body     = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 
 # ① レート制限のテスト: :00 秒起点の1分ウィンドウ内に 6 回呼び出すと 6 回目が 429 になることを確認
@@ -1342,7 +1481,7 @@ $callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sea
 
 1. **API Management** → 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
 2. 「**+ 追加**」をクリック
-3. Application Insights リソースとして `appinsights-mcp-workshop` を選択
+3. Application Insights リソースとして `$AI_NAME` を選択
 4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
 5. 「**作成**」をクリック
 
@@ -1355,13 +1494,13 @@ $SUB = az account show --query id -o tsv
 
 # APIM に登録されているロガーの ID を取得
 $LOGGER_NAME = az rest --method GET `
-  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers?api-version=2022-08-01" `
+  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/loggers?api-version=2022-08-01" `
   | ConvertFrom-Json | Select-Object -ExpandProperty value `
   | Where-Object { $_.properties.loggerType -eq "applicationInsights" } `
   | Select-Object -First 1 -ExpandProperty name
 Write-Host "Logger: $LOGGER_NAME"
 
-$LOGGER_ID = "/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers/$LOGGER_NAME"
+$LOGGER_ID = "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/loggers/$LOGGER_NAME"
 
 # knowledge-search-mcp に Application Insights 診断を設定（verbosity=information）
 # az rest --body にJSONを直接渡すとPowerShellのエンコード問題が起きるため、一時ファイル経由で渡す
@@ -1378,7 +1517,7 @@ $tmpFile = New-TemporaryFile
 $diagJson | Set-Content -Path $tmpFile -Encoding utf8
 
 az rest --method PUT `
-  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
+  --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01" `
   --body "@$tmpFile" `
   --query "properties.verbosity" -o tsv
 
@@ -1483,12 +1622,11 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 curl で `getArticle` を呼び出してトレースを生成します:
 
 ```powershell
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 $body     = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getArticle","arguments":{"id":"KB001"}}}'
 
 $raw = curl.exe -s --max-time 10 -X POST `
-  "https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp" `
+  "$APIM_GW/knowledge-search-mcp/mcp" `
   -H "Authorization: Bearer $TOKEN" `
   -H "Content-Type: application/json" `
   -H "Accept: application/json, text/event-stream" `
@@ -1537,9 +1675,9 @@ Step 2 の `<trace>` ポリシーは Application Insights へのトレース書�
 
 ```powershell
 # APIM の診断設定を構成
-$APIM_ID = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query id -o tsv
+$APIM_ID = az apim show -n $APIM_NAME -g $RG --query id -o tsv
 $LAW_ID = az monitor log-analytics workspace show `
-  -n law-mcp-workshop -g rg-mcp-workshop --query id -o tsv
+  -n $LAW_NAME -g $RG --query id -o tsv
 az monitor diagnostic-settings create `
   --resource $APIM_ID `
   --name "mcp-diagnostics" `
@@ -1554,7 +1692,7 @@ az monitor diagnostic-settings create `
 >
 > ```powershell
 > $SUB = az account show --query id -o tsv
-> $DIAG_URL = "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01"
+> $DIAG_URL = "https://management.azure.com/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/knowledge-search-mcp/diagnostics/applicationinsights?api-version=2022-08-01"
 >
 > # 現在値を確認
 > $current = az rest --method GET --url $DIAG_URL | ConvertFrom-Json
@@ -1568,11 +1706,11 @@ az monitor diagnostic-settings create `
 >
 > ```powershell
 > $LOGGER_NAME = az rest --method GET `
->   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers?api-version=2022-08-01" `
+>   --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/loggers?api-version=2022-08-01" `
 >   | ConvertFrom-Json | Select-Object -ExpandProperty value `
 >   | Where-Object { $_.properties.loggerType -eq "applicationInsights" } `
 >   | Select-Object -First 1 -ExpandProperty name
-> $LOGGER_ID = "/subscriptions/$SUB/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiManagement/service/apim-mcp-workshop/loggers/$LOGGER_NAME"
+> $LOGGER_ID = "/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/loggers/$LOGGER_NAME"
 >
 > $diagJson = @{
 >     properties = @{
@@ -1605,7 +1743,7 @@ az monitor diagnostic-settings create `
 Step 3 で有効化した診断設定により、APIM のゲートウェイログが Log Analytics Workspace に流れています。ここでは3つの KQL クエリを実行して、MCP ツール呼び出しの状況を可視化します。
 
 **操作手順:**
-1. Azure Portal → **Log Analytics ワークスペース** → **`law-mcp-workshop`** を開く
+1. Azure Portal → **Log Analytics ワークスペース** → あなたの LAW（`$LAW_NAME` で取得した名前） を開く
 2. 左ブレード「**ログ**」をクリック
 3. 以下の各クエリをエディターに貼り付けて「**実行**」をクリック
 
@@ -1629,9 +1767,9 @@ Step 3 で有効化した診断設定により、APIM のゲートウェイロ�
 > 1つの診断設定は「リソース固有モード」か「Azure診断モード」の**どちらか一方のみ**にデータを書き込みます。同一設定でリソース固有テーブルと `AzureDiagnostics` に重複出力されることはありません。このハンズオンでは `--export-to-resource-specific true` を指定しているため、新規データはリソース固有テーブルのみに書き込まれます。
 > ただし、設定変更前（`--export-to-resource-specific true` 指定前）に `AzureDiagnostics` モードで書き込まれたデータは保持期間が切れるまでそのまま残るため、フォールバッククエリで参照できます。
 >
-> **① 診断設定の確認**: 以下のコマンドで `workspaceId` が `law-mcp-workshop` の Resource ID になっているか確認します。
+> **① 診断設定の確認**: 以下のコマンドで `workspaceId` が `$LAW_NAME` の Resource ID になっているか確認します。
 > ```powershell
-> $APIM_ID = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query id -o tsv
+> $APIM_ID = az apim show -n $APIM_NAME -g $RG --query id -o tsv
 > az monitor diagnostic-settings list --resource $APIM_ID --query "[].{name:name, workspace:workspaceId}" -o table
 > ```
 >
@@ -1641,7 +1779,7 @@ Step 3 で有効化した診断設定により、APIM のゲートウェイロ�
 > | count
 > ```
 >
-> **③ テーブルが存在しない場合**: リソース固有テーブルは初回データ到着時に自動作成されます。**MCP Inspector** の接続先を `https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp` に向けて `tools/list` を数回呼び出し、3〜5 分待ってから再実行してください。
+> **③ テーブルが存在しない場合**: リソース固有テーブルは初回データ到着時に自動作成されます。**curl** で `$APIM_GW/knowledge-search-mcp/mcp` へ `tools/list` を数回呼び出し、3〜5 分待ってから再実行してください。
 >
 > **④ それでもテーブルがない場合（フォールバック）**: `ApiManagementGatewayMCPLog` の代わりに `AzureDiagnostics | where Category == "GatewayMCPLogs"` で代替できます。列名は `ToolName` → `toolName_s`、`Error` → `status_s !~ "success"` に読み替えてください。
 
@@ -1726,10 +1864,10 @@ ApiManagementGatewayLogs
 
 ```powershell
 # 5xx エラーが5分間に10回以上発生したらアラート
-$APIM_ID = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query id -o tsv
+$APIM_ID = az apim show -n $APIM_NAME -g $RG --query id -o tsv
 az monitor metrics alert create `
   --name "mcp-5xx-alert" `
-  --resource-group rg-mcp-workshop `
+  --resource-group $RG `
   --scopes $APIM_ID `
   --condition "total Requests > 10 where GatewayResponseCodeCategory includes 5xx" `
   --window-size 5m `
@@ -1748,8 +1886,8 @@ APIM ポリシーで強制的に 500 を返すことで、5xx を意図的に発
 # 1. 現在のポリシーを ETag 付きで取得して保存
 $subId = az account show --query id -o tsv
 $token = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
-$base  = "https://management.azure.com/subscriptions/$subId/resourceGroups/rg-mcp-workshop" +
-         "/providers/Microsoft.ApiManagement/service/apim-mcp-workshop"
+$base  = "https://management.azure.com/subscriptions/$subId/resourceGroups/$RG" +
+         "/providers/Microsoft.ApiManagement/service/$APIM_NAME"
 
 $resp = Invoke-WebRequest `
   "$base/apis/incident-mcp/policies/policy?api-version=2024-05-01&format=rawxml" `
@@ -1773,9 +1911,8 @@ Invoke-RestMethod "$base/apis/incident-mcp/policies/policy?api-version=2024-05-0
 Write-Host "強制500ポリシー適用完了"
 
 # 3. アクセストークンを取得（Lab 3 適用済みの場合）
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
 $mcpToken = az account get-access-token `
-  --resource "api://$SERVER_APP_ID" `
+  --resource "api://$env:SERVER_APP_ID" `
   --query accessToken -o tsv
 
 # 4. 12回 POST して 5xx を生成（閾値 10 回を超える）
@@ -1787,7 +1924,7 @@ $headers = @{
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 1..12 | ForEach-Object {
     $r = Invoke-WebRequest `
-        -Uri "https://apim-mcp-workshop.azure-api.net/incident-mcp/mcp" `
+        -Uri "$APIM_GW/incident-mcp/mcp" `
         -Method POST -Headers $headers -Body $body -SkipHttpErrorCheck
     Write-Host "$_ : $($r.StatusCode)"
 }
@@ -1948,13 +2085,12 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 **ポリシー保存後、curl でツールを呼び出して監査トレースを生成する:**
 
 ```powershell
-$SERVER_APP_ID = az ad app list --display-name "MCP Workshop Server" --query "[0].appId" -o tsv
-$TOKEN    = az account get-access-token --resource "api://$SERVER_APP_ID" --query "accessToken" -o tsv
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 
 # getArticle を呼び出す → AppTraces に caller_oid + upn, MCPLog に ToolName が記録される
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getArticle","arguments":{"id":"KB001"}}}'
 $raw = curl.exe -s --max-time 10 -X POST `
-  "https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp" `
+  "$APIM_GW/knowledge-search-mcp/mcp" `
   -H "Authorization: Bearer $TOKEN" `
   -H "Content-Type: application/json" `
   -H "Accept: application/json, text/event-stream" `
@@ -2038,18 +2174,18 @@ API Center の **統合（Integration）** 機能を使うと、APIM インス�
 
 ```powershell
 # API Center に APIM をリンク
-$APIM_ID = az apim show -n apim-mcp-workshop -g rg-mcp-workshop --query id -o tsv
+$APIM_ID = az apim show -n $APIM_NAME -g $RG --query id -o tsv
 
 # API Center のマネージド ID に APIM 読み取り権限を付与（初回のみ必要）
-$APIC_MSI = az apic show -n apic-mcp-workshop -g rg-mcp-workshop --query "identity.principalId" -o tsv
+$APIC_MSI = az apic show -n $APIC_NAME -g $RG --query "identity.principalId" -o tsv
 az role assignment create `
   --role "API Management Service Reader Role" `
   --assignee $APIC_MSI `
   --scope $APIM_ID
 
 az apic integration create apim `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --integration-name apim-link `
   --azure-apim $APIM_ID
 ```
@@ -2059,7 +2195,7 @@ az apic integration create apim `
 > **⚠️ 注意**: この同期は APIM 上の **すべての API**（REST・MCP 問わず）を API Center へ取り込みます。MCP のみをフィルタして同期する機能は現時点では提供されていません。MCP サーバーだけを確認したい場合は、ポータル左メニューの **「検出 > MCP」** または `az apic api list` の `--filter` オプションを利用してください。
 >
 > ```powershell
-> az apic api list -g rg-mcp-workshop -n apic-mcp-workshop --filter "kind eq 'mcp'" --output table
+> az apic api list -g $RG -n $APIC_NAME --filter "kind eq 'mcp'" --output table
 > ```
 >
 > MCP サーバーのみを個別に API Center へ登録したい場合（REST API を含めたくない場合）は、`integration create` による自動同期は使用せず、`az apic api create --type mcp` で手動登録してください。ただし、その場合は APIM の変更が API Center へ自動反映されなくなります。
@@ -2069,8 +2205,8 @@ az apic integration create apim `
 ```powershell
 # 登録された API 一覧を確認
 az apic api list `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --output table
 ```
 
@@ -2087,25 +2223,25 @@ APIM 統合（Step 1）で同期された API は `summary`（要約）が空の
 ```powershell
 # API ID を変数に取得（後続 Step でも使用する）
 $KNOWLEDGE_ID = az apic api list `
-  --resource-group rg-mcp-workshop --service-name apic-mcp-workshop `
+  --resource-group $RG --service-name $APIC_NAME `
   --query "[?title=='knowledge-search-mcp'].name | [0]" -o tsv
 
 $INCIDENT_ID = az apic api list `
-  --resource-group rg-mcp-workshop --service-name apic-mcp-workshop `
+  --resource-group $RG --service-name $APIC_NAME `
   --query "[?title=='incident-mcp'].name | [0]" -o tsv
 
 $ONCALL_ID = az apic api list `
-  --resource-group rg-mcp-workshop --service-name apic-mcp-workshop `
+  --resource-group $RG --service-name $APIC_NAME `
   --query "[?title=='oncall-schedule-mcp'].name | [0]" -o tsv
 
 # Summary（要約）を設定 ← ポータルの「要約」列に表示される
-az apic api update -g rg-mcp-workshop --service-name apic-mcp-workshop `
+az apic api update -g $RG --service-name $APIC_NAME `
   --api-id $KNOWLEDGE_ID --summary "社内ナレッジベースを検索する MCP Server。記事の全文検索・カテゴリ一覧取得が可能。"
 
-az apic api update -g rg-mcp-workshop --service-name apic-mcp-workshop `
+az apic api update -g $RG --service-name $APIC_NAME `
   --api-id $INCIDENT_ID --summary "インシデント管理 MCP Server。障害チケットの一覧・詳細取得・新規起票が可能。"
 
-az apic api update -g rg-mcp-workshop --service-name apic-mcp-workshop `
+az apic api update -g $RG --service-name $APIC_NAME `
   --api-id $ONCALL_ID --summary "オンコール担当者スケジュール照会 MCP Server。日付指定で当番情報を取得できる。"
 ```
 
@@ -2119,19 +2255,20 @@ Lab 1 Step 3・Step 6 で `mcpProperties` を設定済みであれば、API Cent
 # APIC に同期された runtimeUri を確認
 $t = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
 $h = @{ Authorization="Bearer $t" }
+$sub = az account show --query id -o tsv
 
 foreach ($api in @("knowledge-search-mcp","oncall-schedule-mcp")) {
-  $id = az apic api list -g rg-mcp-workshop --service-name apic-mcp-workshop `
+  $id = az apic api list -g $RG --service-name $APIC_NAME `
     --query "[?title=='$api'].name | [0]" -o tsv
-  $dep = Invoke-RestMethod "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-mcp-workshop/providers/Microsoft.ApiCenter/services/apic-mcp-workshop/workspaces/default/apis/$id/deployments/default-$id`?api-version=2024-03-01" -Headers $h
+  $dep = Invoke-RestMethod "https://management.azure.com/subscriptions/$sub/resourceGroups/$RG/providers/Microsoft.ApiCenter/services/$APIC_NAME/workspaces/default/apis/$id/deployments/default-$id`?api-version=2024-03-01" -Headers $h
   Write-Host "$api : $($dep.properties.server.runtimeUri)"
 }
 ```
 
-期待される出力（末尾に `/mcp` が付いていること）:
+期待される出力（末尾に `/mcp` が付いていること、URL のホストは自分の APIM 名）:
 ```
-knowledge-search-mcp : https://apim-mcp-workshop.azure-api.net/knowledge-search-mcp/mcp
-oncall-schedule-mcp  : https://apim-mcp-workshop.azure-api.net/oncall-schedule-mcp/mcp
+knowledge-search-mcp : $APIM_GW/knowledge-search-mcp/mcp
+oncall-schedule-mcp  : $APIM_GW/oncall-schedule-mcp/mcp
 ```
 
 > **⚠️ `/mcp` が付いていない場合**: Lab 1 Step 3・Step 6 の手順 9 が未実施です。各 Lab に戻って手順 9 を実行してください。
@@ -2158,8 +2295,8 @@ API Center の **カスタムメタデータ（Custom Properties）** を使う�
 Set-Content -Path "$env:TEMP\schema-dc.json" -Value `
   '{"type":"string","title":"Data Classification","oneOf":[{"const":"public","description":""},{"const":"internal","description":""},{"const":"confidential","description":""},{"const":"restricted","description":""}]}'
 az apic metadata create `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --metadata-name "dataClassification" `
   --schema "@$env:TEMP\schema-dc.json" `
   --assignments '[{entity:api,required:false,deprecated:false}]'
@@ -2168,8 +2305,8 @@ az apic metadata create `
 Set-Content -Path "$env:TEMP\schema-am.json" -Value `
   '{"type":"string","title":"Authentication Mode","oneOf":[{"const":"user-delegated","description":""},{"const":"service-identity","description":""},{"const":"mixed","description":""}]}'
 az apic metadata create `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --metadata-name "authMode" `
   --schema "@$env:TEMP\schema-am.json" `
   --assignments '[{entity:api,required:false,deprecated:false}]'
@@ -2178,8 +2315,8 @@ az apic metadata create `
 Set-Content -Path "$env:TEMP\schema-sla.json" -Value `
   '{"type":"string","title":"SLA Target (%)","oneOf":[{"const":"99.9","description":""},{"const":"99.5","description":""},{"const":"99.0","description":""},{"const":"best-effort","description":""}]}'
 az apic metadata create `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --metadata-name "slaTarget" `
   --schema "@$env:TEMP\schema-sla.json" `
   --assignments '[{entity:api,required:false,deprecated:false}]'
@@ -2188,8 +2325,8 @@ az apic metadata create `
 Set-Content -Path "$env:TEMP\schema-ot.json" -Value `
   '{"type":"string","title":"Owner Team"}'
 az apic metadata create `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --metadata-name "ownerTeam" `
   --schema "@$env:TEMP\schema-ot.json" `
   --assignments '[{entity:api,required:false,deprecated:false}]'
@@ -2209,18 +2346,18 @@ Step 4 で定義したカスタムメタデータのスキーマを、実際の 
 
 ```powershell
 $KNOWLEDGE_ID = az apic api list `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --query "[?title=='knowledge-search-mcp'].name | [0]" -o tsv
 
 $INCIDENT_ID = az apic api list `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --query "[?title=='incident-mcp'].name | [0]" -o tsv
 
 $ONCALL_ID = az apic api list `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --query "[?title=='oncall-schedule-mcp'].name | [0]" -o tsv
 
 Write-Host "knowledge-search-mcp : $KNOWLEDGE_ID"
@@ -2232,8 +2369,8 @@ Set-Content -Path "$env:TEMP\props-knowledge.json" -Value `
   '{"dataClassification":"internal","authMode":"user-delegated","slaTarget":"99.5","ownerTeam":"ナレッジ管理チーム"}'
 
 az apic api update `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --api-id $KNOWLEDGE_ID `
   --custom-properties "@$env:TEMP\props-knowledge.json"
 
@@ -2242,8 +2379,8 @@ Set-Content -Path "$env:TEMP\props-incident.json" -Value `
   '{"dataClassification":"confidential","authMode":"user-delegated","slaTarget":"99.9","ownerTeam":"ITサービスデスクチーム"}'
 
 az apic api update `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --api-id $INCIDENT_ID `
   --custom-properties "@$env:TEMP\props-incident.json"
 
@@ -2252,8 +2389,8 @@ Set-Content -Path "$env:TEMP\props-oncall.json" -Value `
   '{"dataClassification":"internal","authMode":"service-identity","slaTarget":"99.5","ownerTeam":"ITサービスデスクチーム"}'
 
 az apic api update `
-  --resource-group rg-mcp-workshop `
-  --service-name apic-mcp-workshop `
+  --resource-group $RG `
+  --service-name $APIC_NAME `
   --api-id $ONCALL_ID `
   --custom-properties "@$env:TEMP\props-oncall.json"
 ```
@@ -2339,7 +2476,7 @@ Skill は Azure API Center が提供する資産種別の一つで、**AI エー
 
 このハンズオンでは **インシデント対応スキル** を登録します。Lab 1・Lab 2 で公開した 3 つの MCP Server（Knowledge Search・Incident・Oncall Schedule）をまとめて利用できる能力として定義します。
 
-1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「Inventory」→「Assets」** を開く
+1. **Azure Portal** → API Center（`$APIC_NAME`）→ 左メニュー **「Inventory」→「Assets」** を開く
 
 2. ページ上部の **「＋ Register an asset」** ボタンをクリックし、ドロップダウンから **「Skill」** を選択する
 
@@ -2384,7 +2521,7 @@ GitHub の公開リポジトリ [ketana0224/skill-repo](https://github.com/ketan
 > **📄 登録対象のスキル**:
 > [ketana0224/skill-repo/skills/microsoft-docs](https://github.com/ketana0224/skill-repo/tree/main/skills/microsoft-docs)
 
-1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「Inventory」→「資産」** を開く
+1. **Azure Portal** → API Center（`$APIC_NAME`）→ 左メニュー **「Inventory」→「資産」** を開く
 
 2. **「＋ 資産の登録」→「スキル」** をクリックして登録フォームに以下の値を入力する:
 
@@ -2426,13 +2563,13 @@ API Center の **「統合」** 機能（プレビュー）を使うと、GitHub
 
 > **⚠️ このハンズオンでは設定手順を省略します**
 >
-> Git リポジトリとの統合機能は **API Center Standard プラン** が必要です。本ハンズオンで使用している `apic-mcp-workshop` は Free プランのため、自分で統合を作成することはできません。
+> Git リポジトリとの統合機能は **API Center Standard プラン** が必要です。本ハンズオンで使用している `$APIC_NAME` は Free プランのため、自分で統合を作成することはできません。
 >
 > ここでは**講師環境の設定済み API Center** を参照しながら、機能の動作を確認します。
 
 **設定済み環境を確認する**
 
-1. **Azure Portal** → API Center（`apic-mcp-workshop`）→ 左メニュー **「プラットフォーム」→「統合」** を開く
+1. **Azure Portal** → API Center（`$APIC_NAME`）→ 左メニュー **「プラットフォーム」→「統合」** を開く
 
 2. 一覧に以下のエントリが表示されていることを確認する:
 
@@ -2513,7 +2650,7 @@ API Center Developer Portal（プレビュー）は、組織内の API カタロ
 
 Developer Portal を公開するには、まず「アクセス」タブで認証方式を選択する必要があります。
 
-1. Azure Portal → API Center（`apic-mcp-workshop`）→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
+1. Azure Portal → API Center（`$APIC_NAME`）→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
 2. **「アクセス」** タブを選択する
 3. 以下のいずれかを選択する
 
@@ -2525,7 +2662,7 @@ Developer Portal を公開するには、まず「アクセス」タブで認証
    > **「Entra ID の構成」を選んだ場合（推奨）**
    >
    > 「クイック セットアップ」ボタンをクリックすると、Entra ID アプリ登録が自動作成され、
-   > `API Center Portal - apic-mcp-workshop` という名前のアプリが Entra ID テナントに登録されます。
+   > `API Center Portal - <あなたの API Center 名>` という名前のアプリが Entra ID テナントに登録されます。
    > 完了すると「アクセス」タブに登録済みアプリの情報（クライアント ID・サインイン URL）が表示されます。
    >
    > **「匿名アクセスを許可する」を選んだ場合**
@@ -2551,7 +2688,7 @@ Lab 5 で定義したカスタムメタデータが登録されていること�
    >
    > | 項目 | 内容 |
    > |---|---|
-   > | アプリ名 | **API Center Portal - apic-mcp-workshop**（Quick setup で作成されたアプリ） |
+   > | アプリ名 | **API Center Portal - <あなたの API Center 名>**（Quick setup で作成されたアプリ） |
    > | 要求されるアクセス許可 | Access Azure API Center Data API / View your basic profile / Maintain access to data you have given it access to |
    > | 「組織の代理として同意する」チェック | **組織全員に一括同意する場合のみ**チェック（個人利用はチェック不要） |
    >

@@ -13,6 +13,9 @@
     },
     "apimPublisherName": {
       "value": "MCP Workshop Team"
+    },
+    "deployBackend": {
+      "value": false
     }
   }
 }

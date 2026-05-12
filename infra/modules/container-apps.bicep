@@ -2,8 +2,8 @@
 // Azure Container Apps — バックエンド API / MCP Server ホスト
 // ============================================================
 
-@description('リソース名プレフィックス')
-param prefix string
+@description('リソース名ベース（例: mcp-user01）。Container Apps Environment 名に使用。')
+param nameBase string
 
 @description('デプロイリージョン')
 param location string
@@ -17,9 +17,12 @@ param incidentMcpImage string = 'mcr.microsoft.com/azuredocs/containerapps-hello
 @description('oncall-api コンテナイメージ')
 param oncallApiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+// コンテナ App 名は userId を抽出して冫長を避ける（nameBase="mcp-user01" → userIdPart="user01"）
+var userIdPart = replace(nameBase, 'mcp-', '')
+
 // Container Apps Environment
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: 'cae-${prefix}'
+  name: 'cae-${nameBase}'
   location: location
   properties: {
     zoneRedundant: false
@@ -28,7 +31,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 
 // Knowledge Search API (REST)
 resource knowledgeApi 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-knowledge-api'
+  name: 'ca-knowledge-api-${userIdPart}'
   location: location
   properties: {
     managedEnvironmentId: containerAppEnv.id
@@ -60,7 +63,7 @@ resource knowledgeApi 'Microsoft.App/containerApps@2024-03-01' = {
 
 // Incident MCP Server (Streamable HTTP)
 resource incidentMcp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-incident-mcp'
+  name: 'ca-incident-mcp-${userIdPart}'
   location: location
   properties: {
     managedEnvironmentId: containerAppEnv.id
@@ -92,7 +95,7 @@ resource incidentMcp 'Microsoft.App/containerApps@2024-03-01' = {
 
 // On-call Schedule API (REST)
 resource oncallApi 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-oncall-api'
+  name: 'ca-oncall-api-${userIdPart}'
   location: location
   properties: {
     managedEnvironmentId: containerAppEnv.id
@@ -125,3 +128,6 @@ resource oncallApi 'Microsoft.App/containerApps@2024-03-01' = {
 output knowledgeApiUrl string = knowledgeApi.properties.configuration.ingress.fqdn
 output incidentMcpUrl string = incidentMcp.properties.configuration.ingress.fqdn
 output oncallApiUrl string = oncallApi.properties.configuration.ingress.fqdn
+output knowledgeApiContainerAppName string = knowledgeApi.name
+output incidentMcpContainerAppName string = incidentMcp.name
+output oncallApiContainerAppName string = oncallApi.name

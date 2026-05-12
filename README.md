@@ -21,6 +21,8 @@ Azure API Management を MCP Gateway、API Center を MCP Server と SKILL Regis
 
 **[→ docs/hands-on.md を開く](docs/hands-on.md)**
 
+> 💡 **複数人で同一サブスクリプションを共有して実施する場合**: 講師は事前に **[docs/instructor-setup.md](docs/instructor-setup.md)** を実施してください（Entra ID 共有アプリの作成・参加者割り当て表の作成）。
+
 ## 📂 リポジトリ構成
 
 ```
@@ -94,11 +96,16 @@ cd MCP-Gateway-handson
 az login
 
 # 4. parameters.json の apimPublisherEmail を実在メールアドレスに変更してからデプロイ
-az group create -n rg-mcp-workshop -l japaneast
-az deployment group create \
-  --resource-group rg-mcp-workshop \
-  --template-file infra/main.bicep \
-  --parameters infra/parameters.json
+#    複数人実施時は userId をユーザーごとに変更すること（docs/instructor-setup.md 参照）
+$env:USER_ID  = "user01"
+$env:LOCATION = "japaneast"
+az group create -n "rg-mcp-$env:USER_ID" -l $env:LOCATION
+az deployment group create `
+  --resource-group "rg-mcp-$env:USER_ID" `
+  --name main `
+  --template-file infra/main.bicep `
+  --parameters infra/parameters.json `
+  --parameters userId=$env:USER_ID location=$env:LOCATION
 
 # 5. ハンズオン開始
 # docs/hands-on.md を参照
