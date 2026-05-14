@@ -20,7 +20,7 @@
 - [Lab 4: ガバナンス・レート制限・監査ログ（60分）](#lab-4-ガバナンスレート制限監査ログ60分)
 - [Lab 5: API Center で MCP Server Registry を構築（45分）](#lab-5-api-center-で-mcp-server-registry-を構築45分)
 - [Lab 6: API Center で Skill を登録（30分）](#lab-6-api-center-で-skill-を登録30分)
-- [Lab 7: API Center Portal で MCP Server を発見（25分）](#lab-7-api-center-portal-で-mcp-server-を発見25分)
+- [Lab 7: API Center Portal で MCP Server と Skill を発見（25分）](#lab-7-api-center-portal-で-mcp-server-と-skill-を発見25分)
 - [補足1: API Center 登録資産を Microsoft Foundry のプライベートカタログとして活用](#補足1-api-center-登録資産を-microsoft-foundry-のプライベートカタログとして活用)
 - [対象者別 学習パス](#対象者別-学習パス)
 - [参考資料](#参考資料)
@@ -564,6 +564,14 @@ az apim api import `
   --subscription-required false
 ```
 
+> **💡 OpenAPI ↔ APIM のマッピング**: インポート時、OpenAPI 仕様の各フィールドは下表のとおり APIM の operation プロパティへ変換されます。Portal の operation 一覧に表示される名前は `summary` 由来です。
+>
+> | OpenAPI フィールド | 役割（仕様上） | APIM での扱い |
+> |---|---|---|
+> | `operationId` | 機械可読の一意 ID（SDK 生成・関数名）| operation の **name (id)**（URL の一部） |
+> | `summary` | 人間向けの短い説明（1 行）| operation の **displayName**（Portal 一覧の表示名） |
+> | `description` | 詳細説明（複数行可）| operation の **description** |
+
 Azure Portal で確認:
 1. **API Management** → **APIs** → **Knowledge Search API** を開く
 2. 各オペレーション（searchArticles, listCategories, getArticle）が表示されることを確認
@@ -845,9 +853,15 @@ Azure Portal での操作:
 
 #### Step 3: APIM 経由での動作確認（10分）
 
-> **⚠️ MCP Inspector は APIM エンドポイントに接続できません。** Inspector 0.10.x 以降は接続時に RFC 7591 Dynamic Client Registration (DCR) を自動実行しますが、APIM は DCR をサポートしていないためエラーになります。代わりに curl を使用します。
+> **⚠️ MCP Inspector は APIM エンドポイントに接続できません。** Inspector 0.10.x 以降は接続時に RFC 7591 Dynamic Client Registration (DCR) を自動実行しますが、APIM は DCR をサポートしていないためエラーになる場合があります。その場合は、代わりに curl を使用します。
 
 ```powershell
+# === コンソール出力を UTF-8 に設定（日本語の文字化け対策）===
+# curl.exe は UTF-8 を返しますが、Windows PowerShell の既定は cp932 (Shift-JIS) のため
+# そのままだと description などの日本語が文字化けします。下記を実行すると正しく表示されます。
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
+
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 $MCP_URL = "$APIM_GW/incident-mcp/mcp"
 
@@ -855,7 +869,7 @@ $MCP_URL = "$APIM_GW/incident-mcp/mcp"
 curl.exe -s -X POST $MCP_URL `
   -H "Content-Type: application/json" `
   -H "Accept: application/json, text/event-stream" `
-  -d $body | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) }
+  -d $body
 ```
 
 確認手順:
@@ -930,6 +944,19 @@ MCP Server へのアクセスに対して Entra ID ベースの認証・認可�
 | Knowledge Search | ユーザー代理 | 検索ログに「誰が検索したか」を残すため |
 | Incident 起票 | ユーザー代理 | 「誰が起票したか」の記録が必須 |
 | On-call 参照 | サービスID | 当番表は全員同一データ |
+
+> **⚠️ Lab 3 以降の curl テストの位置づけ（必読）**
+>
+> 本 Lab では `az account get-access-token --resource "api://$env:SERVER_APP_ID"` で取得したトークンを使って APIM の認証ポリシーを通過するか確認します。**これは "ポリシーが有効に動作しているか" を確認する近似テストであり、本来のフロー（MCP Workshop Client App 経由）の完全な再現ではありません。**
+>
+> | 項目 | 本ハンズオンの curl テスト | 本来のフロー |
+> |---|---|---|
+> | クライアント (`appid` クレーム) | **Azure CLI**（`04b07795-8ddb-461a-bbee-02f9e1bf7b46`） | **MCP Workshop Client** (`$env:CLIENT_APP_ID`) |
+> | トークン取得方法 | `az account get-access-token` | MSAL / OAuth interactive flow |
+> | APIM ポリシーを通過する仕組み | `<audiences>` の検証のみ。本ハンズオンのポリシーは `<client-application-ids>` を設定していないため、`api://<SERVER_APP_ID>` 宛の有効なトークンなら **どのクライアント経由でも通る** | 同じ。`<client-application-ids>` を厳格に設定すれば「MCP Workshop Client 経由のみ許可」も可能 |
+> | 検証できること | ✅ トークンなしで 401 / ありで 200 / audience 違反で 401 | 上記＋ 「特定 Client 経由のみ通る」（`<client-application-ids>` を追加した場合）|
+>
+> 本物の MCP Client 実装（MSAL 等）を用いた検証は本ハンズオンの範囲外ですが、APIM 側のポリシーは同じ `validate-azure-ad-token` でそのまま機能します。
 
 ### 🔨 ハンズオン（50分）
 
@@ -1044,6 +1071,20 @@ Write-Host "SERVER_APP_ID: $env:SERVER_APP_ID"
 #### Step 2: APIM の Named Values を設定（3分）
 
 Step 3 の `validate-azure-ad-token` ポリシーが参照する `{{EntraTenantId}}` / `{{McpServerAppId}}` を APIM に登録します。値をポリシーに直書きせず Named Values に分離することで、環境変更時にポリシーを書き換えずに済みます。
+
+> **💡 Named Values とは**
+>
+> APIM 内で「キー＝値」を保存できる設定ストア。ポリシー XML から `{{キー名}}` で参照すると、APIM がリクエスト処理時に実際の値へ置換します。
+>
+> - **集中管理**: 同じ値を複数のポリシーで参照（本ハンズオンでは 3 つの MCP が `{{EntraTenantId}}` を共有）
+> - **環境分離**: dev / prod でテナント ID を切り替えるとき、ポリシー XML は触らず Named Value だけ更新
+> - **機密保護**: `secret=true` にすると Portal で値がマスク表示され、Key Vault と連携してシークレットを参照することも可能
+>
+> 今回登録する 2 つ:
+> | name | value | 用途 |
+> |---|---|---|
+> | `EntraTenantId` | Entra テナント ID（GUID） | JWT の `iss`（issuer）クレーム検証 |
+> | `McpServerAppId` | `api://<Server App の Application ID>` | JWT の `aud`（audience）クレーム検証 |
 
 ```powershell
 $sub  = az account show --query id -o tsv
@@ -1214,12 +1255,18 @@ On-call Schedule MCP Server は**全員が同じ当番表を参照**するため
 
 **パターンA との違い：**
 
-| | パターンA（ユーザー代理） | パターンB（サービスID） |
+| 項目 | パターンA（ユーザー代理 / Lab 3）| パターンB（サービスID / Lab 4）|
 |---|---|---|
 | トークンの主体 | ログインユーザー個人 | MI / サービスプリンシパル |
-| `X-User-Id` ヘッダー | ユーザーの `oid` を注入 | 注入しない（サービスの `appid` を使用） |
-| 典型的な呼び出し元 | VS Code / Copilot / AI Agent（ユーザーのトークンで代理実行） | GitHub Actions / 定期バッチ / MI で動く Azure サービス（無人実行） |
-| oncall-api バックエンド | 認証なし（HTTP のみ） | 認証なし（HTTP のみ、変更不要） |
+| 典型的な呼び出し元 | VS Code / Copilot / AI Agent（ユーザーのトークンで代理実行）| GitHub Actions / 定期バッチ / MI で動く Azure サービス（無人実行）|
+| `validate-azure-ad-token` | あり | あり（同じポリシー要素）|
+| `<audiences>` | `api://<SERVER_APP_ID>` を許可 | `api://<SERVER_APP_ID>` を許可（同じ）|
+| `<set-header name="X-User-Id">` | **あり**（JWT の `oid` クレームを抽出してバックエンドに伝播）| **なし**（個人を特定しない）|
+| バックエンドが受け取る情報 | 「**どのユーザー**が呼んだか」が分かる | 呼び出し元の個人は不明（サービス単位の通信）|
+| oncall-api / バックエンド側の認証 | 不要（APIM が代行・プレーン HTTP で転送）| 不要（APIM が代行・プレーン HTTP で転送）|
+
+> **💡 `<client-application-ids>` について**
+> 本ハンズオンの両ポリシーでは `<client-application-ids>` を **設定していません**（`<audiences>` のみで検証）。クライアント App ID を限定したい場合は `validate-azure-ad-token` 内に `<client-application-ids>` 要素を追加できます（例: `MCP Workshop Client` のみ許可してその他のクライアントを排除）。
 
 Azure Portal → API Management（`$APIM_NAME`）→ APIs → MCP Servers → `oncall-schedule-mcp` → **ポリシー**
 
@@ -1259,7 +1306,15 @@ Write-Host "ポリシー XML をクリップボードにコピーしました。
 
 Azure Portal のポリシーエディターを開き、クリップボードの内容を貼り付けて保存します。
 
-> **💡 パターンA との実装上の差**: パターンA では `<set-header name="X-User-Id">` でユーザー OID をバックエンドに渡しています。パターンB では個人を特定しないため、このヘッダーは不要です。oncall-api バックエンド自体は認証なし HTTP のままで変更不要です。
+> **💡 補足: なぜパターンB では `X-User-Id` を注入しないのか**
+>
+> - 当番表データは **全社共通の参照情報** で、利用者ごとに表示内容を変える必要がない
+> - 監査も「いつ・どの IP/APIM サブスクリプションから呼ばれたか」が分かれば十分（個人 OID まで残す必要がない）
+> - 不要に個人を識別できる情報をバックエンドへ流さない方が **データ最小化（GDPR / プライバシー設計）の観点で望ましい**
+>
+> **バックエンド (`oncall-api`) は何も変えない**
+>
+> パターンA と同様、APIM がトークン検証を完了した時点で「正規の呼び出し」と見なし、バックエンドへは認証ヘッダーを付けずプレーン HTTP で転送します。`oncall-api` 側にはコード変更も Authorization ヘッダーの解釈も必要ありません。**「認証は APIM、業務ロジックはバックエンド」という責務分離** がポイントです。
 
 > **💡 本番での Managed Identity 利用**: AI エージェントや GitHub Actions など Azure 上のサービスは、`az account get-access-token` の代わりに Managed Identity から直接トークンを取得して呼び出します。APIM ポリシー側は同じ `validate-azure-ad-token` で検証できます。
 
@@ -1368,6 +1423,33 @@ MCP Gateway としての「安全に運用する」ための制御を実装し�
 
 Knowledge Search MCP Server のポリシーにレート制限を追加します。
 
+##### 事前テスト（ポリシー適用前）— 全 6 回が 200 になることを確認
+
+レート制限を追加する**前**に、現状の動作をベースラインとして記録しておきます。同じテストをポリシー適用後に再実行することで、「適用前は 6 回とも通る → 適用後は 6 回目で 429」という差分が見える化されます。
+
+> **💡 レート制限のカウンターは時刻の :00 秒を起点とした固定ウィンドウでリセットされます。** :58 秒頃に実行を開始すると :00 秒のリセットが先に来るため、6回に達する前にカウントがリセットされます。次の :00 秒以降に実行を開始してください。
+
+```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+$TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
+$MCP_URL  = "$APIM_GW/knowledge-search-mcp/mcp"
+$callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"キーワードでナレッジ記事を全文検索します","arguments":{"query":"VPN"}}}'
+
+Write-Host "[BEFORE rate-limit policy] expecting all 6 to return 200"
+1..6 | ForEach-Object {
+    $res = curl.exe -s -o /dev/null -w "%{http_code}" --max-time 5 -X POST $MCP_URL `
+      -H "Authorization: Bearer $TOKEN" `
+      -H "Content-Type: application/json" `
+      -H "Accept: application/json, text/event-stream" `
+      -d $callBody
+    Write-Host "Call ${_}: HTTP $res"
+}
+# → 6回とも 200 が返ることを確認（まだレート制限ポリシー未適用なので何度呼んでも 200）
+```
+
+##### ポリシー追加手順
+
 Azure Portal → API Management → APIs → MCP Servers → `knowledge-search-mcp` → **ポリシー**
 
 > **💡 追加するのはこの部分です（Lab 3 ポリシーの `</inbound>` 直前に挿入）**:
@@ -1440,13 +1522,16 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 
 > **💡 レート制限のカウンターは時刻の :00 秒を起点とした固定ウィンドウでリセットされます。** :58 秒頃に実行を開始すると :00 秒のリセットが先に来るため、6回に達する前にカウントがリセットされます。次の :00 秒以降に実行を開始してください。
 
+##### 事後テスト（ポリシー適用後）— 6 回目が 429 になることを確認
+
 ```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 $MCP_URL  = "$APIM_GW/knowledge-search-mcp/mcp"
-$body     = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+$callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"キーワードでナレッジ記事を全文検索します","arguments":{"query":"VPN"}}}'
 
-# ① レート制限のテスト: :00 秒起点の1分ウィンドウ内に 6 回呼び出すと 6 回目が 429 になることを確認
-$callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"searchArticles","arguments":{"query":"VPN"}}}'
+Write-Host "[AFTER rate-limit policy] expecting first 5 to be 200, 6th to be 429"
 1..6 | ForEach-Object {
     $res = curl.exe -s -o /dev/null -w "%{http_code}" --max-time 5 -X POST $MCP_URL `
       -H "Authorization: Bearer $TOKEN" `
@@ -1457,6 +1542,8 @@ $callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sea
 }
 # → 最初の5回は 200、6回目は 429 Too Many Requests になることを確認
 ```
+
+事前テストと事後テストの結果を比較し、レート制限ポリシーが効いていることを確認してください。
 
 > **⚠️ 429 が返らない場合の確認ポイント**:
 > 1. ポリシーが **保存済み**（Portal で「保存」を押したか）
@@ -1481,8 +1568,8 @@ $callBody = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sea
 
 1. **API Management** → 左ブレード「**監視**」セクション → 「**Application Insights**」を開く
 2. 「**+ 追加**」をクリック
-3. Application Insights リソースとして `$AI_NAME` を選択
-4. **詳細ログの有効化**: 既定のまま（サンプリングレート 100% のまま）
+3. 「ロガーの追加」パネル → **Application Insights インスタンス** ドロップダウンで `appinsights-mcp-<userId>` を選択
+4. 他の項目（ロガー名・説明など）が表示される場合は既定値のままで OK
 5. 「**作成**」をクリック
 
 **② API レベル: 詳細ログの有効化（CLI）**
@@ -1619,11 +1706,13 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 
 **動作確認:**
 
-curl で `getArticle` を呼び出してトレースを生成します:
+curl で `getArticleById`（APIM 上のツール名は OpenAPI の `summary` 由来で「記事idを指定してナレッジ記事の詳細を取得します」。APIM が name を正規化するため `id` は小文字になる点に注意）を呼び出してトレースを生成します:
 
 ```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
-$body     = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getArticle","arguments":{"id":"KB001"}}}'
+$body     = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"記事idを指定してナレッジ記事の詳細を取得します","arguments":{"id":"KB001"}}}'
 
 $raw = curl.exe -s --max-time 10 -X POST `
   "$APIM_GW/knowledge-search-mcp/mcp" `
@@ -1632,9 +1721,20 @@ $raw = curl.exe -s --max-time 10 -X POST `
   -H "Accept: application/json, text/event-stream" `
   -d $body
 
-$raw -split "`n" | Where-Object { $_ -match "^data: \{" } | ForEach-Object {
-    ($_ -replace "^data: ") | ConvertFrom-Json | ConvertTo-Json -Depth 10
+# SSE 形式（data: {...}）またはプレーン JSON のどちらでもパースできるようフォールバック付きで処理
+function Parse-McpResponse($raw) {
+  $dataLine = ($raw -split "`n") | Where-Object { $_ -match "^data:\s*\{" } | Select-Object -First 1
+  if ($dataLine) { return ($dataLine -replace "^data:\s*") | ConvertFrom-Json }
+  return $raw | ConvertFrom-Json
 }
+
+$result = Parse-McpResponse $raw
+$result | ConvertTo-Json -Depth 20
+
+# 記事本体（text 内の JSON 文字列）を読みやすく表示
+Write-Host ""
+Write-Host "--- article ---"
+$result.result.content[0].text | ConvertFrom-Json | ConvertTo-Json -Depth 10
 # → KB001 の記事内容（VPN接続エラーの対処法）が返ることを確認
 ```
 
@@ -1650,17 +1750,14 @@ $raw -split "`n" | Where-Object { $_ -match "^data: \{" } | ForEach-Object {
 
    | # | 種別 | 内容 | 補足 |
    |---|---|---|---|
-   | 1 | **Request** | `POST /knowledge-search-mcp/mcp` — Successful: false, 約5.4分 | SSE接続の維持時間。`Successful: false` は5分タイムアウト後に切断されるため（正常） |
-   | 2 | **Trace** | `MCP Tool Call: Session=N/A, CorrelationId=...` | `<trace>` ポリシーが Application Insights に書き込んだログ。initialize リクエストは Session=N/A が正常 |
-   | 3 | **Dependency** | `GET /api/articles/KB001` — Backend, 14ms | APIM → Container Apps（バックエンド）への呼び出し |
-   | 4 | **Request** | `GET /knowledge-search/api/articles/KB001` — Successful: true, 約15ms | REST API 側で記録された実リクエスト（200 OK） |
-   | 5 | **Exception** | `ClientConnectionFailure: Client connection was unexpectedly closed.` | APIM の SSE 5分タイムアウト（正常動作） |
+   | 1 | **Request** | `POST /knowledge-search-mcp/mcp` — Successful: true, Response time: 1.2 s | クライアント (curl) → APIM への MCP リクエスト |
+   | 2 | **Trace** | `MCP Tool Call: Session=N/A, CorrelationId=0f189db5-...` | `<trace>` ポリシーが Application Insights に書き込んだログ。initialize リクエストは Session=N/A が正常 |
+   | 3 | **Dependency** | `forward-request` — Type: HTTP, Call status: false | APIM 内部の forward-request ステップ（Call status: false は SSE/ストリーミングで正常）|
+   | 4 | **Request** | `GET /knowledge-search/api/articles/KB001` — Successful: true, Response time: 1.2 s | バックエンド REST API 側で記録された実リクエスト（200 OK） |
+   | 5 | **Dependency** | `GET /api/articles/KB001` — Type: HTTP, Duration: 1.2 s, `https://ca-knowledge-api-instructor...` | APIM → Container Apps（バックエンド）への HTTP 呼び出し |
 
    > **💡 CorrelationId の価値**: CorrelationId がなければ上記5つのイベントは別々のログとして散らばります。CorrelationId があることで「同一ツール呼び出しの全ホップ」を1つのトランザクションとして束ねて追跡できます。
 
-6. APIM の **トレース**（Portal → APIs → `knowledge-search-mcp` → テスト → トレース有効）でも確認可能
-
-> **💡 `Session=N/A` と「1 failed」について**: MCP Streamable HTTP では、セッション確立前の最初のリクエスト（initialize）には `Mcp-Session-Id` ヘッダーがないため `Session=N/A` と表示されます。また App Insights の「1 failed」は、このセッション初期化フェーズで APIM 内部が一時的な非2xx を返すことが原因で、MCP プロトコルの正常なハンドシェイク動作です。実際のツール呼び出し（`tools/call`）が成功していれば問題ありません。
 
 > **💡 ポイント**: Step 3 で診断設定を構成した後、`CorrelationId` を使って KQL クエリ（`ApiManagementGatewayMCPLog | where CorrelationId == "..."` ）で特定リクエストのログを絞り込めます。
 
@@ -1671,7 +1768,7 @@ Step 2 の `<trace>` ポリシーは Application Insights へのトレース書�
 - `ApiManagementGatewayMCPLog` テーブル — MCP ツール呼び出し単位でのエラー・集計（リソース固有テーブル）
 - `ApiManagementGatewayLogs` テーブル — レート制限（429）の発生状況（リソース固有テーブル）
 
-> **💡 リソース固有テーブルについて**: `--export-to-resource-specific true` で診断設定を作成すると、`ApiManagementGatewayMCPLog` / `ApiManagementGatewayLogs` という専用テーブルに書き込まれます。テーブルは初回データが到着するまで存在しないため、Step 4 のクエリには **`AzureDiagnostics` をフォールバックとして用意**しています。ハンズオン進行中にテーブルが作成されていない場合はフォールバッククエリを使用してください。
+> **💡 リソース固有テーブルについて**: `--export-to-resource-specific true` で診断設定を作成すると、`ApiManagementGatewayMCPLog` / `ApiManagementGatewayLogs` という専用テーブルに書き込まれます。テーブルは初回データが到着するまで存在しないため、Step 4 のクエリを実行する前に curl で数回 MCP を呼び出して 3〜5 分待ってください。
 
 ```powershell
 # APIM の診断設定を構成
@@ -1764,8 +1861,7 @@ Step 3 で有効化した診断設定により、APIM のゲートウェイロ�
 > | `ApiManagementGatewayLogs` | APIM ゲートウェイの **HTTP トランザクション**ログ。主なカラム: `ResponseCode`・`ApiId`・`DurationMs` |
 >
 > **【リソース固有テーブルと AzureDiagnostics の関係】**
-> 1つの診断設定は「リソース固有モード」か「Azure診断モード」の**どちらか一方のみ**にデータを書き込みます。同一設定でリソース固有テーブルと `AzureDiagnostics` に重複出力されることはありません。このハンズオンでは `--export-to-resource-specific true` を指定しているため、新規データはリソース固有テーブルのみに書き込まれます。
-> ただし、設定変更前（`--export-to-resource-specific true` 指定前）に `AzureDiagnostics` モードで書き込まれたデータは保持期間が切れるまでそのまま残るため、フォールバッククエリで参照できます。
+> 1つの診断設定は「リソース固有モード」か「Azure診断モード」の**どちらか一方のみ**にデータを書き込みます。このハンズオンでは `--export-to-resource-specific true` を指定しているため、データはリソース固有テーブル（`ApiManagementGatewayMCPLog` / `ApiManagementGatewayLogs`）のみに書き込まれ、`AzureDiagnostics` 側には流入しません。
 >
 > **① 診断設定の確認**: 以下のコマンドで `workspaceId` が `$LAW_NAME` の Resource ID になっているか確認します。
 > ```powershell
@@ -1780,10 +1876,10 @@ Step 3 で有効化した診断設定により、APIM のゲートウェイロ�
 > ```
 >
 > **③ テーブルが存在しない場合**: リソース固有テーブルは初回データ到着時に自動作成されます。**curl** で `$APIM_GW/knowledge-search-mcp/mcp` へ `tools/list` を数回呼び出し、3〜5 分待ってから再実行してください。
->
-> **④ それでもテーブルがない場合（フォールバック）**: `ApiManagementGatewayMCPLog` の代わりに `AzureDiagnostics | where Category == "GatewayMCPLogs"` で代替できます。列名は `ToolName` → `toolName_s`、`Error` → `status_s !~ "success"` に読み替えてください。
 
 **クエリ1: MCP ツール呼び出し状況（時系列グラフ）**
+
+> **⚠️ 注意**: 診断設定が反映された **後に** curl で MCP を叩かないとログが入りません。Step 2 の `tools/call` を数回実行してから 3〜5 分待って再実行してください。
 
 5分単位で呼び出し回数とエラー数をツール名別に集計します。
 ```kql
@@ -1795,18 +1891,6 @@ ApiManagementGatewayMCPLog
   by ToolName, bin(TimeGenerated, 5m)
 | render timechart
 ```
-
-> **📋 フォールバック（リソース固有テーブルにデータがない場合）**: `AzureDiagnostics` テーブルで代替できます。列名が異なります（`ToolName` → `toolName_s`、`Error` → `status_s`）。
-> ```kql
-> AzureDiagnostics
-> | where Category == "GatewayMCPLogs"
-> | where TimeGenerated > ago(1h)
-> | summarize
->     totalCalls = count(),
->     errorCalls = countif(status_s !~ "success")
->   by toolName_s, bin(TimeGenerated, 5m)
-> | render timechart
-> ```
 
 **クエリ2: CorrelationId 別のアクティビティ**
 
@@ -1822,19 +1906,6 @@ ApiManagementGatewayMCPLog
 | take 20
 ```
 
-> **📋 フォールバック**:
-> ```kql
-> AzureDiagnostics
-> | where Category == "GatewayMCPLogs"
-> | where TimeGenerated > ago(1h)
-> | summarize
->     requestCount = count(),
->     errors = countif(status_s !~ "success")
->   by CorrelationId
-> | order by requestCount desc
-> | take 20
-> ```
-
 **クエリ3: レート制限（429）の発生状況（棒グラフ）**
 
 Step 1 で設定したレート制限により発生した 429 を時系列で集計します。429 が多いセッションは利用量が多すぎるクライアントの特定に使えます。
@@ -1845,16 +1916,6 @@ ApiManagementGatewayLogs
 | summarize count() by ApiId, bin(TimeGenerated, 5m)
 | render barchart
 ```
-
-> **📋 フォールバック**:
-> ```kql
-> AzureDiagnostics
-> | where Category == "GatewayLogs"
-> | where TimeGenerated > ago(1h)
-> | where responseCode_d == 429
-> | summarize count() by apiId_s, bin(TimeGenerated, 5m)
-> | render barchart
-> ```
 
 #### Step 5: アラートルールの設定（5分）
 
@@ -1890,7 +1951,7 @@ $base  = "https://management.azure.com/subscriptions/$subId/resourceGroups/$RG" 
          "/providers/Microsoft.ApiManagement/service/$APIM_NAME"
 
 $resp = Invoke-WebRequest `
-  "$base/apis/incident-mcp/policies/policy?api-version=2024-05-01&format=rawxml" `
+  "$base/apis/knowledge-search-mcp/policies/policy?api-version=2024-05-01&format=rawxml" `
   -Headers @{Authorization="Bearer $token"}
 $origPolicy = ($resp.Content | ConvertFrom-Json).properties.value
 Write-Host "元のポリシー保存済み（長さ: $($origPolicy.Length) 文字）"
@@ -1900,7 +1961,7 @@ if ($origPolicy.Length -eq 0) { Write-Warning "ポリシーが空です。取得
 $errorPolicy = '<policies><inbound><return-response>' +
                '<set-status code="500" reason="Simulated Error"/>' +
                '</return-response></inbound><backend/><outbound/><on-error/></policies>'
-Invoke-RestMethod "$base/apis/incident-mcp/policies/policy?api-version=2024-05-01" `
+Invoke-RestMethod "$base/apis/knowledge-search-mcp/policies/policy?api-version=2024-05-01" `
   -Method PUT `
   -Headers @{
       Authorization  = "Bearer $token"
@@ -1924,7 +1985,7 @@ $headers = @{
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 1..12 | ForEach-Object {
     $r = Invoke-WebRequest `
-        -Uri "$APIM_GW/incident-mcp/mcp" `
+        -Uri "$APIM_GW/knowledge-search-mcp/mcp" `
         -Method POST -Headers $headers -Body $body -SkipHttpErrorCheck
     Write-Host "$_ : $($r.StatusCode)"
 }
@@ -1934,7 +1995,7 @@ $body = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 #    （メトリクス反映に 1〜3 分、アラート評価に最大 1 分かかります）
 
 # 6. テスト後は必ず元のポリシーに戻す（必須）
-Invoke-RestMethod "$base/apis/incident-mcp/policies/policy?api-version=2024-05-01" `
+Invoke-RestMethod "$base/apis/knowledge-search-mcp/policies/policy?api-version=2024-05-01" `
   -Method PUT `
   -Headers @{
       Authorization  = "Bearer $token"
@@ -1945,7 +2006,37 @@ Invoke-RestMethod "$base/apis/incident-mcp/policies/policy?api-version=2024-05-0
 Write-Host "ポリシー復元完了"
 ```
 
-> **⚠️ 注意**: テスト後は必ず手順 6 でポリシーを復元してください。戻し忘れると `incident-mcp` が常に 500 を返し続けます。
+> **⚠️ 注意**: テスト後は必ず手順 6 でポリシーを復元してください。戻し忘れると `knowledge-search-mcp` が常に 500 を返し続けます。
+
+#### 発火確認のポイント
+
+5xx を 12 件流したあと、以下を確認してください（メトリクスは 1〜3 分、アラート評価は最大 1 分の遅延があります）。
+
+**① Azure Portal → Monitor → アラート**
+- 左ペイン「アラート」を開く → 「シグナルの種類: メトリクス」「重要度: 2」でフィルター
+- `mcp-5xx-alert` がリスト表示され、状態が **「発生済み (Fired)」** になっていること
+- 行をクリックすると「アラート ルール」「発生時刻」「影響を受けたリソース（APIM）」が表示される
+
+**② アラート ルールの詳細**
+- Monitor → アラート → 「アラート ルール」タブ → `mcp-5xx-alert` を開く
+- 概要画面の **「スコープ」** で対象 APIM (`apim-mcp-userxx-xxxxx`) が表示される
+- **「条件」** カードで `Requests > 10`、「監視されている時系列」「推定月額コスト」が表示される
+- 左ペイン **「履歴」** をクリックすると発火履歴（Fired / Resolved）の遷移が確認できる
+
+**③ メトリクスエクスプローラーで生データを確認**
+- APIM リソース → 左ペイン「メトリック」
+- メトリック名前空間: `API Management サービス`、メトリック: `Requests`、集計: **`合計` (Sum)**（`Requests` は Count 型メトリクスなので集計は「合計」を選ぶ。`Count` という選択肢はない）
+- 「フィルターの追加」で `Gateway Response Code starts with 5`、`ApiId = knowledge-search-mcp` を追加
+- 直近 30 分のグラフで 12 件のスパイクが表示されること
+
+> **💡 BackendResponseCode ではなく Gateway Response Code を使う理由**: 今回のテストは APIM の `<return-response>` ポリシーで inbound 段階で 500 を返しているため、バックエンドには到達せず `BackendResponseCode` は空です。アラートルールも `GatewayResponseCodeCategory includes 5xx` で定義しています。
+
+**④ Action Group の通知**
+- メール通知を設定済みなら、受信トレイに「Azure Monitor Alert - mcp-5xx-alert」が届いていること
+- 通知本文にリソース ID、発火時刻、条件、Azure Portal へのリンクが含まれる
+
+**⑤ ポリシー復元後の Resolved 確認**
+- 手順 6 でポリシーを戻し、5 分後に同じアラートが **「解決済み (Resolved)」** に遷移することを確認
 
 アラートが発火した際に Action Group で以下の主な通知先に送ることができます。
 
@@ -2085,26 +2176,47 @@ Azure Portal のポリシーエディターを開き、クリップボードの�
 **ポリシー保存後、curl でツールを呼び出して監査トレースを生成する:**
 
 ```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $TOKEN    = az account get-access-token --resource "api://$env:SERVER_APP_ID" --query "accessToken" -o tsv
 
-# getArticle を呼び出す → AppTraces に caller_oid + upn, MCPLog に ToolName が記録される
-$body = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getArticle","arguments":{"id":"KB001"}}}'
+# getArticleById を呼び出す→ AppTraces に caller_oid + upn, MCPLog に ToolName が記録される
+# ※ APIM 上のツール名は OpenAPI の summary 由来の日本語文字列（`記事id` は小文字）
+$body = @{
+  jsonrpc = "2.0"
+  id = 1
+  method = "tools/call"
+  params = @{
+    name = "記事idを指定してナレッジ記事の詳細を取得します"
+    arguments = @{ id = "KB001" }
+  }
+} | ConvertTo-Json -Compress -Depth 5
+
+# UTF-8 (BOMなし) でファイル出力して --data-binary で送る（cp932 化を回避）
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText("$PWD\body.json", $body, $utf8NoBom)
+
 $raw = curl.exe -s --max-time 10 -X POST `
   "$APIM_GW/knowledge-search-mcp/mcp" `
   -H "Authorization: Bearer $TOKEN" `
-  -H "Content-Type: application/json" `
+  -H "Content-Type: application/json; charset=utf-8" `
   -H "Accept: application/json, text/event-stream" `
-  -d $body
+  --data-binary "@body.json"
 
-# data: 行を抽出して JSON をパース（日本語を正しく表示）
-$raw -split "`n" | Where-Object { $_ -match "^data: \{" } | ForEach-Object {
-    ($_ -replace "^data: ") | ConvertFrom-Json | ConvertTo-Json -Depth 10
+# SSE 形式（data: {...}）またはプレーン JSON のどちらでもパースできるようフォールバック付きで処理
+function Parse-McpResponse($raw) {
+  $dataLine = ($raw -split "`n") | Where-Object { $_ -match "^data:\s*\{" } | Select-Object -First 1
+  if ($dataLine) { return ($dataLine -replace "^data:\s*") | ConvertFrom-Json }
+  return $raw | ConvertFrom-Json
 }
+
+$result = Parse-McpResponse $raw
+$result | ConvertTo-Json -Depth 20
 ```
 
 期待される結果:
-- `event: message` と `data: {"jsonrpc":"2.0","id":1,"result":{"content":[...]}}` が返る
-- 数分後に AppTraces に `caller_oid` / `upn` が、ApiManagementGatewayMCPLog に `ToolName: getArticle` が記録される
+- `result.content[0].text` に KB001 の記事 JSON が返る（ストリーミング付きの場合は `event: message / data: {...}` 形式）
+- 数分後に AppTraces に `caller_oid` / `upn` が、ApiManagementGatewayMCPLog に `ToolName: 記事idを指定してナレッジ記事の詳細を取得します` が記録される
 
 Application Insights のトレースログが Log Analytics ワークスペースに転送され、`AppTraces` テーブルに `caller_oid` と `upn` が記録されます。KQL での確認例：
 
@@ -2192,7 +2304,7 @@ az apic integration create apim `
 
 > **💡 ポイント**: 同期は一方向（APIM → API Center）で、通常数分以内に反映されます（最大24時間の場合あり）。MCP Servers と A2A Agent APIs も同期対象です。
 
-> **⚠️ 注意**: この同期は APIM 上の **すべての API**（REST・MCP 問わず）を API Center へ取り込みます。MCP のみをフィルタして同期する機能は現時点では提供されていません。MCP サーバーだけを確認したい場合は、ポータル左メニューの **「検出 > MCP」** または `az apic api list` の `--filter` オプションを利用してください。
+> **⚠️ 注意**: この同期は APIM 上の **すべての API**（REST・MCP 問わず）を API Center へ取り込みます。MCP のみをフィルタして同期する機能は現時点では提供されていません。MCP サーバーだけを確認したい場合は、ポータル左メニュー **「インベントリ > 資産」** の上部フィルター **「資産の種類」** で `MCP` のみにチェックを入れるか、`az apic api list` の `--filter` オプションを利用してください。
 >
 > ```powershell
 > az apic api list -g $RG -n $APIC_NAME --filter "kind eq 'mcp'" --output table
@@ -2210,18 +2322,18 @@ az apic api list `
   --output table
 ```
 
-#### Step 2: MCP Server の Summary（説明）を設定（5分）
+#### Step 2: MCP Server の Summary（要約）を設定（5分）
 
 **機能説明**
 
-APIM 統合（Step 1）で同期された API は `summary`（要約）が空の状態で登録されます。
-このステップで 3 件の MCP Server に要約文を付与し、API Center ポータルの「要約」列に表示されるようにします。
+APIM 統合（Step 1）で同期された API は、**APIM 側 API の `description` が API Center 側の `description`（説明）にコピー**されます。一方、API Center の `summary`（要約）フィールドには**何も同期されず空のまま**になります（ポータルでは「No data」と表示）。
 
-> **💡 ポイント**: ポータルの「要約」列に表示されるのは `--summary` フィールドです。
-> `--description` は詳細説明用の別フィールドであり、一覧画面には表示されません。
+API Center ポータルの一覧画面で表示される「要約」列を埋めたい場合は、API Center 側で `summary` を直接設定する必要があります。`summary` は APIM 同期の対象外なので、設定した値は同期で上書きされません。
+
+> **💡 ポイント**: 一覧画面の「要約」列に表示されるのは `summary` フィールドです。`description`（説明）は詳細画面でしか表示されません。
 
 ```powershell
-# API ID を変数に取得（後続 Step でも使用する）
+# API ID を取得
 $KNOWLEDGE_ID = az apic api list `
   --resource-group $RG --service-name $APIC_NAME `
   --query "[?title=='knowledge-search-mcp'].name | [0]" -o tsv
@@ -2234,15 +2346,15 @@ $ONCALL_ID = az apic api list `
   --resource-group $RG --service-name $APIC_NAME `
   --query "[?title=='oncall-schedule-mcp'].name | [0]" -o tsv
 
-# Summary（要約）を設定 ← ポータルの「要約」列に表示される
+# Summary（要約）を設定 ← APIM 同期の対象外なので上書きされない
 az apic api update -g $RG --service-name $APIC_NAME `
-  --api-id $KNOWLEDGE_ID --summary "社内ナレッジベースを検索する MCP Server。記事の全文検索・カテゴリ一覧取得が可能。"
+  --api-id $KNOWLEDGE_ID --summary "社内ナレッジベース検索 MCP Server"
 
 az apic api update -g $RG --service-name $APIC_NAME `
-  --api-id $INCIDENT_ID --summary "インシデント管理 MCP Server。障害チケットの一覧・詳細取得・新規起票が可能。"
+  --api-id $INCIDENT_ID --summary "インシデント管理 MCP Server"
 
 az apic api update -g $RG --service-name $APIC_NAME `
-  --api-id $ONCALL_ID --summary "オンコール担当者スケジュール照会 MCP Server。日付指定で当番情報を取得できる。"
+  --api-id $ONCALL_ID --summary "オンコール担当者照会 MCP Server"
 ```
 
 #### Step 3: APIM→API Center 同期の確認（5分）
@@ -2401,20 +2513,20 @@ az apic api update `
 
 #### Step 6: API Center ポータルで確認（5分）
 
-Azure Portal → API Center → Portal overview
+Azure Portal → API Center（`$APIC_NAME`）→ 左メニュー **「インベントリ」→「資産」** を開きます。
 
 確認事項:
-1. 登録した MCP Server が一覧に表示される
-2. カスタムメタデータでフィルタリングできる
-3. ツールスキーマが閲覧できる
-4. VS Code へのインストール導線が表示される
+1. 登録した MCP Server（`knowledge-search-mcp` / `incident-mcp` / `oncall-schedule-mcp`）が一覧に表示される
+2. 上部フィルター「資産の種類」で `MCP` のみに絞り込みができる
+3. 各 MCP Server をクリックすると、概要画面に Step 5 で設定したカスタムメタデータ（Data Classification / Authentication Mode / SLA Target / Owner Team）が表示される
+
 
 ### ✅ 確認ポイント
 
 - [ ] APIM の MCP Server が API Center に自動同期されている
-- [ ] カスタムメタデータ（dataClassification, authMode, ownerTeam）が設定されている
+- [ ] カスタムメタデータ（dataClassification, authMode, slaTarget, ownerTeam）が設定されている
 - [ ] `az apic api list` で登録済み MCP Server を一覧表示できる
-- [ ] ポータルからツールスキーマが閲覧できる
+- [ ] Azure Portal の資産詳細画面でカスタムメタデータが表示される
 
 ### 📦 成果物
 
@@ -2594,6 +2706,11 @@ API Center の **「統合」** 機能（プレビュー）を使うと、GitHub
 
 ![連携後の API Center Portal](images/git_integration02.png)
 
+連携元の SKILL.md:
+[ketana0224/skill-repo/skills/microsoft-docs/SKILL.md](https://github.com/ketana0224/skill-repo/blob/main/skills/microsoft-docs/SKILL.md)
+
+![連携元 SKILL.md と同期された API Center 資産](images/git_integration03.png)
+
 ### ✅ 確認ポイント
 
 - [ ] API Center の資産ページで `incident-response-skill` が「スキル」種別として表示される
@@ -2612,7 +2729,7 @@ API Center の **「統合」** 機能（プレビュー）を使うと、GitHub
 
 ---
 
-## Lab 7: API Center Portal で MCP Server を発見（25分）
+## Lab 7: API Center Portal で MCP Server と Skill を発見（25分）
 
 ### 🎯 目的
 
@@ -2650,7 +2767,7 @@ API Center Developer Portal（プレビュー）は、組織内の API カタロ
 
 Developer Portal を公開するには、まず「アクセス」タブで認証方式を選択する必要があります。
 
-1. Azure Portal → API Center（`$APIC_NAME`）→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
+1. Azure Portal → API Center→ 左メニュー **「API Center ポータル（プレビュー）」→「設定」** を開く
 2. **「アクセス」** タブを選択する
 3. 以下のいずれかを選択する
 
@@ -2713,6 +2830,25 @@ Lab 5 で定義したカスタムメタデータが登録されていること�
 ポータルでは資産種別（All assets / APIs / MCP servers / Plugins / Skills）をタブで切り替えられます。
 また、キーワード検索とフィルター（メタデータ値・ライフサイクルステージ等）を組み合わせて目的の資産を素早く見つけられます。
 
+> **🔴 「You don't have permission to access this developer portal」エラーが出る場合**
+>
+> Developer Portal の閲覧には API Center リソースに対する **Azure API Center Data Reader** 以上のロールが必要です。サインインしているユーザーにロールが未付与だとカタログが空＋鍵アイコンで表示されます。
+>
+> **PowerShell で自分自身に Reader ロールを付与する**:
+> ```powershell
+> $APIC_ID = az apic show -g $RG -n $APIC_NAME --query id -o tsv
+> $UPN     = az ad signed-in-user show --query userPrincipalName -o tsv
+>
+> az role assignment create `
+>   --assignee $UPN `
+>   --role "Azure API Center Data Reader" `
+>   --scope $APIC_ID
+> ```
+>
+> 付与後はロール伝播に **最大 5 分** かかります。**シークレット / InPrivate ウィンドウ**でポータル URL を開き直して再試行してください。
+>
+> 他の参加者にも公開する場合は、`--assignee` を相手の UPN・グループ ID に変えて同じコマンドを実行します。
+
 **このステップでやること**
 
 1. **資産種別フィルター**を確認する
@@ -2750,7 +2886,58 @@ MCP Server の詳細ページの **「Documentation」** タブはツール一�
    >
    > | エラーメッセージ | 原因 | 対処 |
    > |---|---|---|
+   > | `The MCP server blocked the request due to CORS policy.` | APIM の MCP API に Developer Portal オリジンを許可する CORS ポリシーが未設定。ブラウザは別オリジン（API Center Portal）から APIM へ `tools/list` を直接呼ぶため、CORS が必要 | 下記の **CORS ポリシー追加手順** を参照 |
    > | ツール一覧が空欄・取得エラー | REST → APIM → MCP 変換の場合はプレビュー時点で未対応の可能性あり | 確認中 |
+   >
+   > **CORS ポリシー追加手順**
+   >
+   > 以下のスクリプトで CORS を含むポリシー XML を生成し、クリップボードにコピーします（`incident-mcp` のデフォルトポリシーに CORS のみを追加した内容です）:
+   >
+   > ```powershell
+   > $policy = @"
+   > <policies>
+   >     <inbound>
+   >         <base />
+   >
+   >         <!-- Lab 7 Step 3: Developer Portal からブラウザで tools/list を取得するための CORS -->
+   >         <!-- 注: <origin>*</origin> を使うため allow-credentials は false 必須（APIM 仕様） -->
+   >         <cors allow-credentials="false">
+   >             <allowed-origins>
+   >                 <origin>*</origin>
+   >             </allowed-origins>
+   >             <allowed-methods>
+   >                 <method>GET</method>
+   >                 <method>POST</method>
+   >                 <method>OPTIONS</method>
+   >             </allowed-methods>
+   >             <allowed-headers>
+   >                 <header>*</header>
+   >             </allowed-headers>
+   >         </cors>
+   >
+   >     </inbound>
+   >     <backend>
+   >         <base />
+   >     </backend>
+   >     <outbound>
+   >         <base />
+   >     </outbound>
+   >     <on-error>
+   >         <base />
+   >     </on-error>
+   > </policies>
+   > "@
+   > $policy | Set-Clipboard
+   > Write-Host "ポリシー XML をクリップボードにコピーしました。Portal に貼り付けて保存してください。"
+   > ```
+   >
+   > Azure Portal → API Management → **APIs** → 該当 MCP API（例: `incident-mcp`）→ **All operations** → **インバウンド処理** の鉛筆アイコンでポリシーエディターを開き、クリップボードの内容を貼り付けて保存します。
+   >
+   > 保存後、ブラウザで Developer Portal の `incident-mcp` 詳細ページを再読み込みするとツール一覧が表示されます。本番環境では `<origin>*</origin>` ではなく Developer Portal のオリジン（例: `https://<apic-name>.portal.<region>.azure-apicenter.ms`）を明示することを推奨します。
+   >
+   > **既に Lab 3 や Lab 4 のポリシー（`validate-azure-ad-token` / レート制限 / 相関ID / トレース）を適用済みの API**（`knowledge-search-mcp` など）に CORS を追加する場合は、上記の `<cors>...</cors>` ブロックだけを既存ポリシーの `<base />` の直後（**`validate-azure-ad-token` より前**）にコピペしてください。CORS プリフライト `OPTIONS` はトークンを持たないため、認証より先に応答する必要があります。
+
+
 
 3. ツール一覧からツール（例: `listIncidents`）をクリックし、引数フォームが表示されることを確認する
 
@@ -2777,6 +2964,46 @@ MCP Server の詳細ページには **「Install in VS Code」** ボタンがあ
 > 実際のプロジェクトでは、Portal の **「Install in VS Code」** ボタンを使うことで
 > 接続設定を簡単に配布できます。
 
+#### Step 5: Skill ドキュメント（5分） ※今回は GitHub と連携している講師環境をお見せします
+
+**機能説明**
+
+API Center に登録された **Skill** 資産も、Developer Portal の資産種別フィルター「Skills」から MCP Server と同じ流れで発見できます。Skill は Git リポジトリ（`SKILL.md` を含む）と連携できるため、ポータルの詳細ページにはリポジトリの内容（Summary / Description / 互換性 / Allowed tools 等）がそのまま反映されます。
+
+**このステップでやること**
+
+1. Developer Portal 上部のタブで **「Skills」** を選択する
+2. Lab 6 で登録した Skill（例: `microsoft-docs`）をクリックして詳細ページを開く
+3. 以下の項目が `SKILL.md` の内容と一致していることを確認する
+
+   - **Summary**（一覧および詳細ページ上部）
+   - **Description**（Skill の概要・使い方）
+   - **Compatibility**（依存関係・前提条件）
+   - **Allowed tools**（呼び出し可能な API / MCP Server のガバナンス）
+   - **Source URL**（Git リポジトリへのリンク）
+
+4. 連携元の `SKILL.md` と Developer Portal の表示を見比べ、**Git リポジトリの更新がそのままカタログに反映される運用**を確認する
+
+   - 参考リポジトリ: [ketana0224/skill-repo/skills/microsoft-docs/SKILL.md](https://github.com/ketana0224/skill-repo/blob/main/skills/microsoft-docs/SKILL.md)
+
+> **💡 ガバナンスポイント**: Skill 詳細ページの **Allowed tools** 欄には、その Skill が呼び出してよい API / MCP Server がリストアップされます。利用者は事前にどのツールへアクセスするかを確認でき、組織側は宣言的なガバナンスを実現できます。
+
+> **⚠️ Git 連携が必要**: このステップで表示されるメタデータは、Lab 6 Step 4 で設定した Git リポジトリ統合（Standard プラン）が前提です。Free プラン環境では `SKILL.md` の内容が同期されないため、講師環境のデモを参照してください。
+
+**参考画像**
+
+Skill フィルターで一覧表示:
+
+![Skill フィルター](images/skill01.png)
+
+Skill 詳細ページ（`SKILL.md` の内容が反映される）:
+
+![Skill ドキュメント](images/skill02.png)
+
+AI Quality Score によるアセスメント:
+
+![AI Quality Score](images/AI_Quality_Score.png)
+
 ### ✅ 確認ポイント
 
 - [ ] Developer Portal にブラウザからアクセスできる
@@ -2785,6 +3012,7 @@ MCP Server の詳細ページには **「Install in VS Code」** ボタンがあ
 - [ ] タグ欄・Additional properties にメタデータ値が表示される
 - [ ] 資産種別タブの切り替えとセマンティック検索が動作する
 - [ ] Documentation タブでツール一覧が表示される
+- [ ] 「Skills」タブで Lab 6 で登録した Skill が表示され、`SKILL.md` の内容と一致する（講師環境で確認）
 
 ### 📦 成果物
 
