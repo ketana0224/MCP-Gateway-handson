@@ -1,0 +1,1 @@
+{"id":1,"params":{"arguments":{"id":"KB001"},"name":"記事idを指定してナレッジ記事の詳細を取得します"},"method":"tools/call","jsonrpc":"2.0"}
