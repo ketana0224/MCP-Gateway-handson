@@ -796,6 +796,7 @@ Write-Host "Incident MCP URL: https://$INCIDENT_MCP_URL/mcp"
 出力例:
 ```
 Incident MCP URL: https://ca-incident-mcp-instructor.happypond-00713c37.eastus.azurecontainerapps.io/mcp
+https://ca-incident-mcp-instructor.wonderfulpebble-9f4a40b9.eastus.azurecontainerapps.io/mcp
 ```
 
 上記の URL をコピーしてから MCP Inspector を起動します:
